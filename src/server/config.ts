@@ -70,6 +70,9 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
       // The Windows install ships bin/agentapi.bat (verified on this machine).
       ? [path.join(agyHome, 'bin', 'agentapi.bat'), path.join(agyHome, 'bin', 'agentapi.exe'), 'agentapi', 'agentapi.exe']
       : [path.join(agyHome, 'bin/agentapi'), 'agentapi']),
+    // The ZCode template's own places; the phase-2 bridge reads them too.
+    zcodeAppAsar: env.ZCODE_APP_ASAR || (win ? path.join(localPrograms, 'Zcode', 'resources', 'app.asar') : undefined),
+    zcodeHome: env.ZCODE_HOME || path.join(home, '.zcode'),
     catalogs,
   };
 }

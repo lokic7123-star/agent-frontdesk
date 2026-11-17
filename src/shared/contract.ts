@@ -422,6 +422,9 @@ export interface BridgeConfig {
   settingsFile: string;
   agyHome: string;
   agentapiBin: string | null;
+  /** The ZCode template (plugins/zcode.plugin.ts) reads these; the phase-2 bridge will too. */
+  zcodeAppAsar?: string;
+  zcodeHome?: string;
   catalogs: Record<string, Model[]>;
 }
 
