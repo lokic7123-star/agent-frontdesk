@@ -67,7 +67,8 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     // What the person chose in the console (which agents are on). Local to this checkout, not committed.
     settingsFile: env.BRIDGE_SETTINGS_FILE || path.join(ROOT, '.frontdesk.json'),
     agyHome, agentapiBin: executable('AGENTAPI_BIN', win
-      ? [path.join(agyHome, 'bin', 'agentapi.exe'), 'agentapi', 'agentapi.exe']
+      // The Windows install ships bin/agentapi.bat (verified on this machine).
+      ? [path.join(agyHome, 'bin', 'agentapi.bat'), path.join(agyHome, 'bin', 'agentapi.exe'), 'agentapi', 'agentapi.exe']
       : [path.join(agyHome, 'bin/agentapi'), 'agentapi']),
     catalogs,
   };

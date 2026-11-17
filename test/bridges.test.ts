@@ -321,7 +321,8 @@ test('Antigravity starts a new chat in a folder through the language server, and
   bridge.fetch = async (url, options) => String(url).endsWith('/StartCascade') ? (calls.push({ method: 'StartCascade', body: bodyOf(options) }), answer({ cascadeId: 'new1' })) : real(url, options);
   bridge.agentapi = async () => { throw new Error('agentapi cannot name a folder'); };
   assert.deepEqual(await bridge.newConversation({ prompt: 'hello', cwd: dir, model: 'MODEL_A' }), { id: 'new1', engine: 'antigravity', started: true, cwd: dir });
-  assert.deepEqual(at(calls, 0).body, { source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT', trajectoryType: 'CORTEX_TRAJECTORY_TYPE_CASCADE', workspaceUris: [__node_url.pathToFileURL(dir).href] });
+  // The executor refuses to start without a model, so StartCascade carries the pick explicitly.
+  assert.deepEqual(at(calls, 0).body, { source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT', trajectoryType: 'CORTEX_TRAJECTORY_TYPE_CASCADE', workspaceUris: [__node_url.pathToFileURL(dir).href], config: { plannerConfig: { requestedModel: { model: 'MODEL_A' } } } });
   assert.deepEqual([at(calls, 1).method, dig(at(calls, 1).body, 'cascadeId'), dig(at(calls, 1).body, 'items', 0, 'text'), dig(at(calls, 1).body, 'cascadeConfig', 'plannerConfig', 'requestedModel', 'model')], ['SendUserCascadeMessage', 'new1', 'hello', 'MODEL_A']);
   await assert.rejects(bridge.newConversation({ prompt: 'x', cwd: path.join(dir, 'missing') }), /文件夹不存在/);
   // Pictures live in the conversation's own upload folder; anything else is only counted.
@@ -540,4 +541,23 @@ test('a Codex writing block is read up to its closing ::: (a fence inside it doe
   // One still being written runs to the end of the text.
   assert.deepEqual(writingBlock(':::writing{variant="standard" id="83924"}\nSo the question'), { raw: ':::writing{variant="standard" id="83924"}\nSo the question', attributes: { variant: 'standard', id: '83924' }, body: 'So the question' });
   assert.equal(writingBlock('text\n:::writing{}'), null);
+});
+
+test('system notices injected into a trajectory are not how a turn ends', async () => {
+  const steps = [
+    agyStep('USER_INPUT', 'DONE', { userInput: { userResponse: 'go' } }),
+    agyStep('EPHEMERAL_MESSAGE', 'DONE', { ephemeralMessage: { content: '<context/>' } }),
+  ];
+  const { bridge, dir } = antigravityFixture(steps);
+  const row = { last_user_input_step_index: 0 };
+  // The cascade went idle while only notices followed the message: not an ending yet.
+  assert.equal(await bridge.turnOutcome('c1', row), null);
+  steps.push(agyStep('ERROR_MESSAGE', 'DONE', { errorMessage: { shouldShowUser: true, error: { userErrorMessage: 'Agent execution terminated due to error.', shortError: 'quota gone' } } }));
+  assert.deepEqual(await bridge.turnOutcome('c1', row), { status: 'failed', error: { message: 'Agent execution terminated due to error. quota gone' } });
+  // A tool step settling is not an ending either: the desktop may still be writing its verdict.
+  steps.splice(2, 1, agyStep('RUN_COMMAND', 'DONE', { runCommand: { combinedOutput: { full: 'a.txt' } } }));
+  assert.equal(await bridge.turnOutcome('c1', row), null);
+  steps.splice(2, 1, agyStep('PLANNER_RESPONSE', 'DONE', { plannerResponse: { response: 'done' } }));
+  assert.deepEqual(await bridge.turnOutcome('c1', row), { status: 'completed' });
+  bridge.dispose(); fs.rmSync(dir, { recursive: true });
 });

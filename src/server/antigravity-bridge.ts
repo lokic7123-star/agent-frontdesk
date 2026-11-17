@@ -95,6 +95,7 @@ function workspaceOf(uris: unknown): string {
 
 // The language server's own record of a conversation (GetCascadeTrajectorySteps), rewritten as the
 // transcript's records so one parser reads both. Older conversations have no transcript file at all.
+const TRACE = !!process.env.AGY_TRACE;
 const stepKind = (step: unknown): string => String(get(step, 'type') || '').replace('CORTEX_STEP_TYPE_', '');
 const stepStatus = (step: unknown): string => String(get(step, 'status') || '').replace('CORTEX_STEP_STATUS_', '');
 const SETTLED = new Set(['DONE', 'ERROR', 'CANCELED', 'INTERRUPTED', 'INVALID', 'CLEARED']);
@@ -553,7 +554,10 @@ class AntigravityBridge extends EventEmitter {
       const bin = this.binPath;
       // Callers check sendBlockedReason() first; without agentapi there is nothing to run.
       if (!bin) { reject(new Error(NO_AGENTAPI)); return; }
-      execFile(bin, args, { env: { ...this.env, ...this.lsEnv() }, timeout: 60000, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+      // Windows ships agentapi as a .bat, which execFile cannot start without a shell; the
+      // arguments are flags and ids the caller controls, so the shell adds only cmd.exe's shim.
+      const viaShell = process.platform === 'win32' && /\.(bat|cmd)$/i.test(bin);
+      execFile(bin, args, { env: { ...this.env, ...this.lsEnv() }, timeout: 60000, maxBuffer: 4 * 1024 * 1024, ...(viaShell ? { shell: true } : {}) }, (err, stdout, stderr) => {
         let data: unknown = null;
         try { data = parseJson(String(stdout).trim()); } catch {}
         const failed = get(data, 'error');
@@ -683,13 +687,18 @@ class AntigravityBridge extends EventEmitter {
     if (reason) throw Object.assign(new Error(reason), { status: 503 });
     if (cwd) {
       if (!path.isAbsolute(cwd) || !fs.existsSync(cwd)) throw Object.assign(new Error('这个文件夹不存在，聊天没有新建'), { status: 400 });
+      // The executor refuses to start without a model ("plan model not specified"), so a
+      // cascade the console starts carries one explicitly: the pick the person made, else the
+      // first model the desktop offers (verified against the live language server, 2.32.1).
+      const wanted = model || (await this.getModels())[0]?.id;
+      const config = wanted ? { plannerConfig: { requestedModel: { model: wanted } } } : undefined;
       let started: unknown;
-      try { started = await this.ls('StartCascade', { source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT', trajectoryType: 'CORTEX_TRAJECTORY_TYPE_CASCADE', workspaceUris: [pathToFileURL(cwd).href] }); }
+      try { started = await this.ls('StartCascade', { source: 'CORTEX_TRAJECTORY_SOURCE_CASCADE_CLIENT', trajectoryType: 'CORTEX_TRAJECTORY_TYPE_CASCADE', workspaceUris: [pathToFileURL(cwd).href], ...(config ? { config } : {}) }); }
       catch (err) { throw Object.assign(new Error(`Antigravity 没有在这个文件夹里新建聊天（${lsDetail(err)}）`), { status: lsStatus(err) }); }
       const cascadeId = get(started, 'cascadeId');
       if (!cascadeId) throw new Error('Antigravity 未返回会话 ID');
       const id = String(cascadeId);
-      await this.sendUserMessage(id, this.buildAgyPrompt(prompt, attachments), { model });
+      await this.sendUserMessage(id, this.buildAgyPrompt(prompt, attachments), { model: wanted });
       return { id, engine: 'antigravity', started: true, cwd };
     }
     const args = ['new-conversation'];
@@ -708,11 +717,16 @@ class AntigravityBridge extends EventEmitter {
   async turnOutcome(conversationId: string, row: Bag, { failure = '', received = false }: { failure?: string; received?: boolean } = {}): Promise<Outcome | null> {
     try {
       const steps = list(get(await this.ls('GetCascadeTrajectorySteps', { cascadeId: conversationId, stepOffset: Math.max(0, Number(row['last_user_input_step_index']) || 0) }), 'steps'));
-      const last = steps.slice(1).at(-1);
+      // System notices (an MCP's context injections among them) are not how a turn ends, and a
+      // cascade the desktop already calls idle may not have written its ending yet: completed is
+      // said only when the desktop answered (its reply, or the notification it shows), failed on
+      // its error, interrupted on its stop. Anything else is still waiting for its ending.
+      const last = steps.slice(1).filter(step => stepKind(step) !== 'EPHEMERAL_MESSAGE').at(-1);
       if (!last) return null;
       const error = shownError(last);
       if (error) return { status: 'failed', error: { message: errorText(error) } };
-      return { status: ['CANCELED', 'INTERRUPTED'].includes(stepStatus(last)) ? 'interrupted' : 'completed' };
+      if (['CANCELED', 'INTERRUPTED'].includes(stepStatus(last))) return { status: 'interrupted' };
+      return ['PLANNER_RESPONSE', 'NOTIFY_USER'].includes(stepKind(last)) ? { status: 'completed' } : null;
     } catch {
       return failure ? { status: 'failed', error: { message: failure } } : received ? { status: 'completed' } : null;
     }
@@ -781,6 +795,7 @@ class AntigravityBridge extends EventEmitter {
       try {
         const row = this.row(conversationId);
         const idle = !!row && Number(row['not_fully_idle']) === 0;
+        if (TRACE) console.error(`[agy watch] ${conversationId.slice(0, 8)} check: row=${!!row} idle=${idle} received=${received} elapsed=${Date.now() - started}ms`);
         if (!row) {
           // Antigravity has no record of this conversation (never created, or deleted there):
           // nothing can follow the message, so the turn is not left running forever.
@@ -794,6 +809,7 @@ class AntigravityBridge extends EventEmitter {
         const accepted = received || Number(row['last_user_input_step_index']) > baseline;
         const outcome = accepted ? await this.turnOutcome(conversationId, row, { failure, received }) : null;
         if (stopped) return;
+        if (TRACE) console.error(`[agy watch] ${conversationId.slice(0, 8)} outcome: accepted=${accepted} outcome=${JSON.stringify(outcome)} failure=${JSON.stringify(failure)}`);
         if (!outcome) {
           // Idle with nothing recorded after the message: give Antigravity time, then say so.
           if (Date.now() - started > this.giveUpMs) { cleanup(); emitter.emit('error', new Error('Antigravity 没有开始这一轮：它的记录里没有这条消息的回应')); }
