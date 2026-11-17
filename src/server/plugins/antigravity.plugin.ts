@@ -24,8 +24,12 @@ const CHARACTER: Character = { kind: 'image', url: '/assets/characters/antigravi
 /** The agent as the console lists it before it is set up: found when Antigravity's data folder, or the app, is on this machine. */
 export const about: PluginAbout = { ...IDENTITY, character: CHARACTER,
   // The app's own icon, read from the installed app (the host serves it; nothing is copied here).
-  appIcon: () => process.env.ANTIGRAVITY_APP_ICON || '/Applications/Antigravity.app/Contents/Resources/icon.icns',
-  detect: config => firstExisting([...appPlaces('/Applications/Antigravity.app/'), config.agyHome]) };
+  // Windows keeps the PNG in the app folder's root; the .env (ANTIGRAVITY_APP_ICON) wins everywhere.
+  appIcon: () => process.env.ANTIGRAVITY_APP_ICON
+    || (process.platform === 'win32' ? `${process.env.LOCALAPPDATA || ''}\\Programs\\antigravity\\Antigravity.exe` : '/Applications/Antigravity.app/Contents/Resources/icon.icns'),
+  detect: config => firstExisting([...appPlaces(process.platform === 'win32'
+    ? `${(process.env.LOCALAPPDATA || '')}\\Programs\\antigravity\\resources\\app.asar`
+    : '/Applications/Antigravity.app/Contents/Resources/app.asar'), config.agyHome]) };
 export const setup: PluginSetup = ({ config, registerEngine }) => {
   // Where Antigravity keeps its data: always set by the server's configuration (config.ts).
   const agyHome = config.agyHome;

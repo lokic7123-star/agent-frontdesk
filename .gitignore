@@ -16,6 +16,10 @@ docs/skins/*/source/*.jpg
 # Build output (npm run build)
 dist/
 
+# The Windows UIA driver's local build output (dotnet build/publish inside the project folder)
+src/server/native/win32/**/bin/
+src/server/native/win32/**/obj/
+
 # Pictures the person uploaded for an agent's face in the console's settings
 .frontdesk-avatars/
 

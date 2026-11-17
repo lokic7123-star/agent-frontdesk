@@ -71,10 +71,26 @@ function helperResultOf(value: unknown, crashed: () => HelperResult): HelperResu
   return { ...result, ok: get(result, 'ok') === true, ...(typeof code === 'string' ? { code } : {}), ...(error != null ? { error: String(error) } : {}) };
 }
 const DRIVER = path.join(NATIVE, 'ax-driver.swift');
+// On Windows the shared driver is a C# project (native/win32/uia-driver), published with dotnet;
+// its source hash covers the whole project folder, and the build lands in the same cache.
+const UIA_PROJECT = path.join(NATIVE, 'win32', 'uia-driver');
 // macOS keeps its helpers in ~/Library/Caches; Windows uses %LOCALAPPDATA%\agent-frontdesk.
 const defaultCacheDir = (): string => process.platform === 'win32'
   ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'agent-frontdesk')
   : path.join(os.homedir(), 'Library/Caches/agent-frontdesk');
+
+function hashTree(dir: string): string {
+  const hash = createHash('sha1');
+  const walk = (at: string): void => {
+    for (const item of fs.readdirSync(at, { withFileTypes: true })) {
+      const file = path.join(at, item.name);
+      if (item.isDirectory()) walk(file);
+      else { hash.update(item.name); hash.update(fs.readFileSync(file)); }
+    }
+  };
+  walk(dir);
+  return hash.digest('hex').slice(0, 12);
+}
 // One wording for every engine (the page translates it by this exact text).
 const NOT_TRUSTED = '桌面代发需要辅助功能权限：在「系统设置 → 隐私与安全性 → 辅助功能」里允许运行工作台服务的程序（例如终端），然后重启工作台';
 
@@ -116,20 +132,36 @@ class DesktopAutomation {
   }
   async helper(): Promise<string | null> {
     if (this.binary) return this.binary;
-    if (!this.building) this.building = (async () => {
-      const source = Buffer.concat([fs.readFileSync(DRIVER), Buffer.from('\n'), fs.readFileSync(this.flow)]);
-      const base = path.join(this.cacheDir, `${this.engine}-desktop-${createHash('sha1').update(source).digest('hex').slice(0, 12)}`);
-      if (!fs.existsSync(base)) {
-        fs.mkdirSync(this.cacheDir, { recursive: true });
-        // swiftc runs top-level code only from one file, so the driver and the flow become one.
-        fs.writeFileSync(`${base}.swift`, source);
-        await new Promise<void>((resolve, reject) => execFile('/usr/bin/xcrun', ['swiftc', '-O', `${base}.swift`, '-o', `${base}.tmp`], { timeout: 300000 }, err => err ? reject(err) : resolve()));
-        fs.renameSync(`${base}.tmp`, base); fs.rmSync(`${base}.swift`, { force: true });
-        this.prune(base);
-      }
-      return (this.binary = base);
-    })().catch(() => null).finally(() => { this.building = null; });
+    if (!this.building) this.building = (this.platform === 'win32' ? this.buildWin32() : this.buildSwift())
+      .catch(() => null).finally(() => { this.building = null; });
     return this.building;
+  }
+  // Windows: dotnet publish of the uia-driver project, one exe per source version. The flow file
+  // does not take part (the C# driver carries the whole flow); the profile is still passed at run.
+  async buildWin32(): Promise<string | null> {
+    const base = path.join(this.cacheDir, `${this.engine}-desktop-${hashTree(UIA_PROJECT)}`);
+    if (!fs.existsSync(base)) {
+      fs.mkdirSync(this.cacheDir, { recursive: true });
+      await new Promise<void>((resolve, reject) => execFile('dotnet', ['publish', UIA_PROJECT, '-c', 'Release', '-r', 'win-x64', '--self-contained', 'false', '-o', `${base}.tmp`], { timeout: 300000 }, err => err ? reject(err) : resolve()));
+      fs.renameSync(path.join(`${base}.tmp`, 'uia-driver.exe'), base);
+      fs.rmSync(`${base}.tmp`, { recursive: true, force: true });
+      this.prune(base);
+    }
+    return (this.binary = base);
+  }
+  // macOS: swiftc compiles driver + flow into one helper, as before.
+  async buildSwift(): Promise<string | null> {
+    const source = Buffer.concat([fs.readFileSync(DRIVER), Buffer.from('\n'), fs.readFileSync(this.flow)]);
+    const base = path.join(this.cacheDir, `${this.engine}-desktop-${createHash('sha1').update(source).digest('hex').slice(0, 12)}`);
+    if (!fs.existsSync(base)) {
+      fs.mkdirSync(this.cacheDir, { recursive: true });
+      // swiftc runs top-level code only from one file, so the driver and the flow become one.
+      fs.writeFileSync(`${base}.swift`, source);
+      await new Promise<void>((resolve, reject) => execFile('/usr/bin/xcrun', ['swiftc', '-O', `${base}.swift`, '-o', `${base}.tmp`], { timeout: 300000 }, err => err ? reject(err) : resolve()));
+      fs.renameSync(`${base}.tmp`, base); fs.rmSync(`${base}.swift`, { force: true });
+      this.prune(base);
+    }
+    return (this.binary = base);
   }
   // Every source version leaves a helper behind; the ones not built or run for a month are removed.
   // Another checkout's server may still be running an old one: a server that finds its helper gone

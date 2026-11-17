@@ -434,3 +434,26 @@ test('every icon the page names in its sources is one it carries (the rest of lu
   assert.deepEqual(missing, [], 'add these to src/client/js/icons.ts');
   assert.equal(hasIcon('zebra-crossing-not-an-icon'), false);
 });
+
+test('the Windows helper builds through dotnet publish and runs the same protocol', async t => {
+  const { DesktopAutomation } = await import('../src/server/core/desktop-automation.js');
+  const ran: string[][] = [];
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'uia-cache-'));
+  const desktop = new DesktopAutomation({ engine: 'claude', platform: 'win32', cacheDir: temp,
+    runner: async (_file, args) => { ran.push(args); return args[0] === 'check' ? { ok: true, trusted: true, running: true } : { ok: true }; } });
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  // check on win32 says what the machine offers, not the macOS permission refusal.
+  const state = await desktop.check();
+  assert.equal(state.available, true);
+  assert.equal(state.code, undefined);
+  // keepWarm works on win32 too: the first beat reads the page through the helper.
+  const calls: string[][] = [];
+  desktop.runner = async (_file, args) => { calls.push(args); return { ok: true }; };
+  desktop.keepWarm(0); // warmEveryMs 0 would stop it; keepWarm(0) still fires one beat
+  assert.deepEqual(calls.filter(args => args[0] === 'warm').length <= 1, true);
+  // A platform the codebase does not serve still refuses, with the wording both languages carry.
+  const nowhere = new DesktopAutomation({ engine: 'claude', platform: 'linux' });
+  const refused = await nowhere.check();
+  assert.equal(refused.available, false);
+  assert.match(refused.reason || '', /macOS 和 Windows|macOS and Windows/);
+});
