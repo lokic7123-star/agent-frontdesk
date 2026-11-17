@@ -778,25 +778,41 @@ class ClaudeBridge {
     }
     return null;
   }
-  // Claude Code's own sign-in, kept by the CLI in the macOS keychain. This is Claude's own
-  // credential (philosophy 2a): read fresh on the server for each dictation, never stored or
-  // sent to the page. An expiring token is refreshed by letting the CLI make a call.
+  // Claude Code's own sign-in, kept by the CLI in the macOS keychain (Windows and Linux: the
+  // CLI keeps the same JSON in ~/.claude/.credentials.json). This is Claude's own credential
+  // (philosophy 2a): read fresh on the server for each dictation, never stored or sent to the
+  // page. An expiring token is refreshed by letting the CLI make a call.
   async oauthToken(): Promise<string | null> {
-    const read = () => new Promise<unknown>(resolve => execFile('security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 15000 }, (err, stdout) => {
-      try { resolve(err ? null : get(parseJson(stdout), 'claudeAiOauth') || null); } catch { resolve(null); }
-    }));
+    const read = () => new Promise<unknown>(resolve => {
+      if (process.platform === 'win32') {
+        try { resolve(get(parseJson(fs.readFileSync(path.join(this.home, '.credentials.json'), 'utf8')), 'claudeAiOauth') || null); } catch { resolve(null); }
+        return;
+      }
+      execFile('security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 15000 }, (err, stdout) => {
+        try { resolve(err ? null : get(parseJson(stdout), 'claudeAiOauth') || null); } catch { resolve(null); }
+      });
+    });
     let auth = await read();
     const expiresAt = num(get(auth, 'expiresAt'));
     if (expiresAt && expiresAt - Date.now() < 120000) { await this.getUsage().catch(() => {}); auth = await read(); }
     return str(get(auth, 'accessToken')) || null;
   }
 
-  // Whether Claude Code's sign-in is in the keychain at all. Only the entry's attributes are
-  // asked for (no -w): the token is not read here, and asking does not bring up a keychain prompt.
-  // An entry about to expire is renewed when dictation starts (oauthToken).
+  // Whether Claude Code's sign-in is kept at all (keychain on macOS, the credentials file
+  // elsewhere). Only the entry's presence is checked: the token is not read here, and asking
+  // does not bring up a keychain prompt. An entry about to expire is renewed when dictation
+  // starts (oauthToken).
   dictationReady(): Promise<DictationReady> {
-    return new Promise(resolve => execFile('security', ['find-generic-password', '-s', 'Claude Code-credentials'], { timeout: 5000 }, err =>
-      resolve(err ? { ready: false, reason: noSignIn(this.bin) } : { ready: true })));
+    return new Promise(resolve => {
+      if (process.platform === 'win32') {
+        let ready = false;
+        try { ready = !!get(parseJson(fs.readFileSync(path.join(this.home, '.credentials.json'), 'utf8')), 'claudeAiOauth'); } catch {}
+        resolve(ready ? { ready: true } : { ready: false, reason: noSignIn(this.bin) });
+        return;
+      }
+      execFile('security', ['find-generic-password', '-s', 'Claude Code-credentials'], { timeout: 5000 }, err =>
+        resolve(err ? { ready: false, reason: noSignIn(this.bin) } : { ready: true }));
+    });
   }
   // Claude's dictation: the same speech stream Claude Code's voice mode uses. It is the console's
   // default speech service for every agent (BRIDGE_DICTATION_ENGINE); when it cannot start,
