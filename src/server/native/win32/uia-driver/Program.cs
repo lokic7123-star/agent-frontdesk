@@ -104,23 +104,26 @@ namespace AgentFrontdesk.UiaDriver
                     });
                     return new Dictionary<string, object> { ["ok"] = true, ["key"] = key, ["ways"] = report };
                 }
-                case "send":
-                {
-                    var root = FindAppRoot(profile);
-                    if (root == null) return Fail("not_running", "应用没有在运行");
-                    var text = stdin.ReadToEnd();
-                    var composer = FindControl(root, profile, "composer", "chatComposer")
-                        ?? FindControl(root, profile, "chatComposer", "composer");
-                    if (composer == null) return Fail("no_composer", "没有找到输入框（profile 的 composer）");
-                    var tookFocus = false;
-                    if (!Fill(composer, text))
-                    {
-                        tookFocus = true;
-                        if (!BorrowFocusAndPaste(composer, text)) return Fail("no_fill", "输入框填不进文字");
-                    }
-                    var pressed = PressSend(root, profile, composer);
-                    return new Dictionary<string, object> { ["ok"] = pressed, ["pressed"] = pressed, ["tookFocus"] = tookFocus };
-                }
+        case "send":
+        {
+            var root = FindAppRoot(profile);
+            if (root == null) return Fail("not_running", "应用没有在运行");
+            var text = stdin.ReadToEnd();
+            // TODO(win32): the flow's <title> <localId> arguments are not navigated yet — the
+            // text goes into whatever session the app is showing. A desktop-side session check
+            // lands with the phase-3 Claude work; until then the answer says targeted:false.
+            var composer = FindControl(root, profile, "composer", "chatComposer")
+                ?? FindControl(root, profile, "chatComposer", "composer");
+            if (composer == null) return Fail("no_composer", "没有找到输入框（profile 的 composer）");
+            var tookFocus = false;
+            if (!Fill(composer, text))
+            {
+                tookFocus = true;
+                if (!BorrowFocusAndPaste(composer, text)) return Fail("no_fill", "输入框填不进文字");
+            }
+            var pressed = PressSend(root, profile, composer);
+            return new Dictionary<string, object> { ["ok"] = pressed, ["pressed"] = pressed, ["tookFocus"] = tookFocus, ["targeted"] = false };
+        }
                 case "stop":
                 {
                     var root = FindAppRoot(profile);
@@ -326,6 +329,7 @@ namespace AgentFrontdesk.UiaDriver
         static bool BorrowFocusAndPaste(AutomationElement composer, string text)
         {
             var before = NativeMethods.GetForegroundWindow();
+            bool pasted = false;
             try
             {
                 composer.SetFocus();
@@ -335,16 +339,18 @@ namespace AgentFrontdesk.UiaDriver
                     {
                         System.Windows.Clipboard.SetText(text);
                         System.Windows.Forms.SendKeys.SendWait("^v");
+                        pasted = true;
                     }
                     catch { }
                 });
                 thread.SetApartmentState(ApartmentState.STA);
                 thread.Start();
-                thread.Join(2000);
+                // A paste that did not land within the wait must not read as delivered.
+                if (!thread.Join(2000)) return false;
             }
             catch { return false; }
             finally { if (before != IntPtr.Zero) NativeMethods.SetForegroundWindow(before); }
-            return true;
+            return pasted;
         }
 
         static bool BorrowFocusAndKey(AutomationElement target, string keys)

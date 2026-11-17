@@ -40,3 +40,16 @@ docs/windows-port-notes.md（hub 发现、LS RPC 200、发送到配额墙、回�
 - 终端（Git Bash）显示中文为 GBK 乱码是显示问题；用 node 脚本 + 文件中转（Read 工具
   读 UTF-8）核验中文内容。
 - relay wrapup 在干净工作区会跳过台账写入；如需补台账，先落 HANDOFF.md 再收口。
+
+## ⑥ 交叉审计补遗（2026-11-18 第二轮，提交 819419d 之后）
+三个独立子代理交叉审核（提交完整性 / 门禁重跑 / 文档事实核查），全部通过，产出
+以下已修复项：
+- readAppIcon 支持 PNG 与 app.asar 内 /icon.png（Windows 图标原给 .exe 永远解析失败，
+  现指向 resources\app.asar，真机验证 48633B PNG 读出）
+- UIA send 结果带 targeted:false 并注明 title/localId 未导航的限制；粘贴超时不再误报
+  成功（BorrowFocusAndPaste 返回实绩）
+- contract.ts 过时注释、port-notes 补 warm-check/send 导航两条限制、README 徽章
+  URL、Roadmap 标注、HANDOFF 文件名指正
+- 隐私清理：Temp 下 npm test 遗留的 106 个 frontdesk-spaces-*（含桌面应用数据拷贝）
+  与本次会话全部探测脚本/dump 已删除；未发现任何敏感值入库
+审计确认：darwin 分支逐行等价、测试只加宽不削弱（含反例验证）、敏感信息零泄露。

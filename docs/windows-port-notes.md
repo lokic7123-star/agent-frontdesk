@@ -59,3 +59,7 @@
 4. `process.kill(pid,0)` 的 pid 复用误判未做进程名校验（后续改进项）。
 5. CDP（DevToolsActivePort）在本机为陈旧文件，实际未开——Electron CDP 增强通道
    仍是可选项，未启用。
+6. UIA 驱动的 `warm check` 暂无 profile 漂移巡检（Windows 侧忽略 check 参数，行为
+   安全但无 staleControls 告警）；`send` 尚不导航会话（title/localId 未用，文本进入
+   应用当前显示的会话，结果带 `targeted:false` 标记）——都随 Claude/Codex 桌面版
+   真机接入补齐。
