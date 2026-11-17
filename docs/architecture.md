@@ -136,7 +136,7 @@ The parts Frontdesk draws itself (agent rail, sidebar, header, dialogs, its own 
 
 - The channels are private interfaces of each desktop app and can change with any update. Codex and Claude are used daily. For Antigravity, new chats in a folder, stop, answering cards and reading old chats without a transcript are covered by tests with doubles but have not been tried against the live app.
 - With a desktop app set to a language other than English, most controls are still found. What is still recognised by its English text: dialogs and cards (`Switch model?`, `Trust this workspace`, `Submit` / `Skip`), the labels on Claude's new-session page (`Folder`, `Environment`), Codex's project picker, and the stop button of Codex's ChatGPT mode. Where a control is not recognised the command fails with the reason and nothing is sent.
-- macOS only. The accessibility helper and the apps' data locations are macOS-specific.
+- macOS and Windows 11. The accessibility helper (macOS) and the C# UIA driver (Windows, native/win32) are platform-specific, as are the apps' data locations; the Windows port's per-app status and limits are in [windows-port-notes.md](windows-port-notes.md).
 - The server listens on `127.0.0.1` and has no login. Event logs and drafts live in the process. Remote or multi-user use would need authentication and a different design.
 
 ## Further reading
