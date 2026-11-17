@@ -1,5 +1,7 @@
 # HANDOFF — agent-frontdesk Windows 11 移植
 
+> **2026-11-18 会话收口（只追加不覆盖）**：**fix: 修复 HANDOFF.md, windows-port-notes.md, Program.cs 等 6 个文件 中的逻辑缺陷**——① **问题/目标**：完成 fix: 修复 HANDOFF.md, windows-port-notes.md, Program.cs 等 6 个文件 中的逻辑缺陷；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 2fee154（变更 HANDOFF.md, windows-port-notes.md, Program.cs, antigravity.plugin.ts 等 6 个文件）；④ **结果**：提交 2fee154 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
+
 > **2026-11-18 会话收口（只追加不覆盖）**：**docs(handoff): 更新文档 (HANDOFF.md)**——① **问题/目标**：完成 docs(handoff): 更新文档 (HANDOFF.md)；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 dc10638（变更 HANDOFF.md）；④ **结果**：提交 dc10638 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
 
 ## ① 目标
