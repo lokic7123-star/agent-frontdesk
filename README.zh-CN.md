@@ -9,7 +9,7 @@
 
 [![CI](https://github.com/Phz-06/agent-frontdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Phz-06/agent-frontdesk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Platform: macOS · Windows 11](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows-lightgrey.svg)
+![Platform: macOS · Windows 11](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows%2011-lightgrey.svg)
 ![Node 22.16+](https://img.shields.io/badge/node-%E2%89%A5%2022.16-brightgreen.svg)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-orange.svg)](CONTRIBUTING.md)
 
@@ -139,7 +139,7 @@ Frontdesk 是跑在你电脑上的一个小服务。它读各家桌面应用留�
 
 ## 未来计划
 
-- 支持 Windows
+- Windows 11 移植（本 fork；上游主线仍在计划中）
 - 接入更多桌面版 AI
 - 桌面应用用中文等其他界面语言时也能完整使用
 - 加上登录，在手机上远程查看和发消息

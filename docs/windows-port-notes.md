@@ -30,7 +30,7 @@
   跳过 EPHEMERAL；completed 必须有 PLANNER_RESPONSE/NOTIFY_USER 证据；仅 USER_INPUT
   后跟时保持等待（不再凭"没有错误"就猜完成）。
 - agentapi 在 Windows 是 `bin/agentapi.bat`（execFile 需 shell:true，已处理）。
-- 会话列表（conversation_summaries.db，200 个会话）、cwd（Windows 路径）、模型清单
+- 会话列表（conversation_summaries.db，bridge 查询 LIMIT 200 封顶；当前库顶层会话 241 条）、cwd（Windows 路径）、模型清单
   均真机读通。旧会话无转录且未加载时 LS 返回 404 "trajectory not found"——与上游
   macOS 行为一致（上游 Limits 也承认旧会话读取靠替身覆盖），非移植回归。
 - 发送链路实测到账号配额墙（RESOURCE_EXHAUSTED 429，约 131h 后重置）：桌面记录的

@@ -28,8 +28,8 @@
 docs/windows-port-notes.md（hub 发现、LS RPC 200、发送到配额墙、回合证据链）。
 
 ## ④ 未决断点（按优先级）
-1. Antigravity 回复文本的网页回显：账号配额 429（约 2026-11-23 重置）后，重跑
-   `/tmp/final-closure.mjs` 类流程补验「网页发消息→桌面回复→网页回显」全文闭环。
+1. Antigravity 回复文本的网页回显：账号配额 429（约 2026-11-23 重置）后，重跑 closure 类探测脚本
+   （POST /api/sessions/antigravity 新建会话后轮询回合终态）补验「网页发消息→桌面回复→网页回显」全文闭环。
 2. Claude Desktop / Codex 桌面版未装机：UIA 发送与 IPC 通道代码就绪，装机后真机验证
    （Codex IPC 的 Windows 管道名是占位，`CODEX_IPC_PATH` 可覆盖）。
 3. ZCode 二期接入：按 docs/zcode-integration.md 取证主会话落盘 → bridge → profiles。
