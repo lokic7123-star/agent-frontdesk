@@ -1,5 +1,7 @@
 # HANDOFF — agent-frontdesk Windows 11 移植
 
+> **2026-11-18 会话收口（只追加不覆盖）**：**docs(handoff): 更新文档 (HANDOFF.md)**——① **问题/目标**：完成 docs(handoff): 更新文档 (HANDOFF.md)；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 dc10638（变更 HANDOFF.md）；④ **结果**：提交 dc10638 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
+
 ## ① 目标
 把 macOS-only 的 Phz-06/agent-frontdesk 移植到 Windows 11：统一网页调度桌面 AI
 客户端（Antigravity / Codex / Claude，预留 ZCode/WorkBuddy），零损失保留桌面端
