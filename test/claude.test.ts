@@ -1479,9 +1479,12 @@ test('a signed-out Claude Code is told the sign-in command that works on this ma
   const own = '/Users/me/Library/Application Support/Claude/claude-code/2.1.0/abc/claude.app/Contents/MacOS/claude';
   assert.equal(loginCommand(own, { PATH: '/usr/bin:/opt/bin' }), `"${own}" auth login`);
   // The bridge says it where it reports being signed out, and the page says the same in English.
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'frontdesk-signin-')), bin = path.join(dir, 'claude');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'frontdesk-signin-'));
+  const bin = path.join(dir, process.platform === 'win32' ? 'claude.cmd' : 'claude');
   try {
-    fs.writeFileSync(bin, '#!/bin/sh\necho \'{"loggedIn":false}\'\n', { mode: 0o755 });
+    // Windows: a shell script without an extension cannot be spawned; claude.cmd is what an npm
+    // install gives there anyway, and authStatus runs it through a shell.
+    fs.writeFileSync(bin, process.platform === 'win32' ? '@echo {"loggedIn":false}\r\n' : '#!/bin/sh\necho \'{"loggedIn":false}\'\n', { mode: 0o755 });
     const bridge = new ClaudeBridge({ home: '/nonexistent', env: {}, bin });
     const status = bridge.authStatus();
     assert.equal(status.loggedIn, false);

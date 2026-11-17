@@ -71,6 +71,10 @@ function helperResultOf(value: unknown, crashed: () => HelperResult): HelperResu
   return { ...result, ok: get(result, 'ok') === true, ...(typeof code === 'string' ? { code } : {}), ...(error != null ? { error: String(error) } : {}) };
 }
 const DRIVER = path.join(NATIVE, 'ax-driver.swift');
+// macOS keeps its helpers in ~/Library/Caches; Windows uses %LOCALAPPDATA%\agent-frontdesk.
+const defaultCacheDir = (): string => process.platform === 'win32'
+  ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'agent-frontdesk')
+  : path.join(os.homedir(), 'Library/Caches/agent-frontdesk');
 // One wording for every engine (the page translates it by this exact text).
 const NOT_TRUSTED = '桌面代发需要辅助功能权限：在「系统设置 → 隐私与安全性 → 辅助功能」里允许运行工作台服务的程序（例如终端），然后重启工作台';
 
@@ -102,7 +106,7 @@ class DesktopAutomation {
   beats = 0; suspects = new Map<string, number>(); stale: string[] = [];
   // engine: the flow and profile name ('claude' → claude-desktop.swift + profiles/claude.json);
   // label: how the person knows the app ("Claude 桌面版").
-  constructor({ engine, label, cacheDir = path.join(os.homedir(), 'Library/Caches/agent-frontdesk'), platform = process.platform, runner = run, parkMs = 45_000, warmEveryMs = 10_000 }: AutomationOptions) {
+  constructor({ engine, label, cacheDir = defaultCacheDir(), platform = process.platform, runner = run, parkMs = 45_000, warmEveryMs = 10_000 }: AutomationOptions) {
     this.engine = engine; this.label = label || engine; this.parkMs = parkMs; this.warmEveryMs = warmEveryMs;
     this.flow = path.join(NATIVE, `${engine}-desktop.swift`);
     this.profile = path.join(NATIVE, 'profiles', `${engine}.json`);
@@ -142,7 +146,7 @@ class DesktopAutomation {
   }
   // { available, reason, code }. Cached briefly: permission and the app being open change rarely.
   async check(): Promise<AutomationState> {
-    if (this.platform !== 'darwin') return { available: false, reason: '桌面代发只支持 macOS' };
+    if (this.platform !== 'darwin' && this.platform !== 'win32') return { available: false, reason: '桌面代发只支持 macOS 和 Windows' };
     if (this.state && Date.now() - this.checkedAt < 10000) return this.state;
     const file = await this.helper();
     let state: AutomationState;
@@ -208,7 +212,7 @@ class DesktopAutomation {
   // keeps the desktop's accessibility tree built. Skipped while a command is running or waiting
   // (it reads the page itself), and it stops by itself once the console has gone quiet.
   keepWarm(ms = 3 * 60_000): void {
-    if (this.platform !== 'darwin' || this.warmEveryMs <= 0) return;
+    if ((this.platform !== 'darwin' && this.platform !== 'win32') || this.warmEveryMs <= 0) return;
     const idle = Date.now() > this.warmUntil;
     this.warmUntil = Date.now() + ms;
     const beat = () => {

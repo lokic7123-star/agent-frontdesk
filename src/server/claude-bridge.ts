@@ -33,7 +33,9 @@ const NO_CLI = '没有找到 Claude Code 命令行。请先打开一次 Claude �
 // PATH, else the copy the desktop app installed, by its full path. That path holds the person's
 // name and a folder per version, so it is worked out here and never written into a document.
 function loginCommand(bin: string | null, env: NodeJS.ProcessEnv = process.env): string {
-  const onPath = !!bin && (env['PATH'] || '').split(path.delimiter).some(dir => path.join(dir, 'claude') === bin);
+  // Both separators are accepted so a PATH written for the other platform is still understood,
+  // and the comparison normalizes \ so a Windows join matches a /-written candidate.
+  const onPath = !!bin && (env['PATH'] || '').split(/[;:]/).some(dir => path.join(dir, 'claude').replace(/\\/g, '/') === bin.replace(/\\/g, '/'));
   return !bin || onPath ? 'claude auth login' : `"${bin}" auth login`;
 }
 const noSignIn = (bin: string | null): string => `读取不到 Claude Code 的登录信息，请先运行 ${loginCommand(bin)}`;
@@ -715,7 +717,10 @@ class ClaudeBridge {
     if (!this.bin) return { loggedIn: false, error: NO_CLI };
     if (this.auth && Date.now() - this.auth.at < 60000) return this.auth;
     try {
-      const loggedIn = !!get(parseJson(execFileSync(this.bin, ['auth', 'status'], { encoding: 'utf8', timeout: 8000 })), 'loggedIn');
+      // A Windows npm install arrives as claude.cmd, which execFileSync cannot start without a
+      // shell; the arguments are fixed words, so a shell only adds the cmd.exe shim.
+      const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(this.bin);
+      const loggedIn = !!get(parseJson(execFileSync(this.bin, ['auth', 'status'], { encoding: 'utf8', timeout: 8000, ...(viaShell ? { shell: true } : {}) })), 'loggedIn');
       this.auth = { at: Date.now(), loggedIn, error: loggedIn ? '' : loggedOut(this.bin) };
     } catch (err) { this.auth = { at: Date.now(), loggedIn: false, error: /not logged|login/i.test(String(errorField(err, 'stdout') || messageOf(err))) ? loggedOut(this.bin) : `无法确认 Claude Code 登录状态：${messageOf(err).split('\n')[0]}` }; }
     return this.auth;

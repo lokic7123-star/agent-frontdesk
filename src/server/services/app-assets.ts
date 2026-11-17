@@ -38,6 +38,12 @@ function readAsarFile(archive: string, pattern: RegExp): { path: string; data: B
 // For a plugin's `detect` (is its desktop app on this machine?). Nothing is opened or started.
 /** Where the app an app.asar belongs to may be installed: its bundle ("/Applications/X.app"), and the same bundle in the person's own Applications folder. */
 function appPlaces(asar: string): string[] {
+  if (process.platform === 'win32') {
+    // Windows Electron layout (<AppDir>\resources\app.asar): the app is its install folder.
+    const at = asar.toLowerCase().lastIndexOf(`${path.sep}resources${path.sep}`);
+    const app = at < 0 ? asar : asar.slice(0, at);
+    return [app];
+  }
   const at = asar.indexOf('.app/'), app = at < 0 ? asar : asar.slice(0, at + 4);
   return [app, path.join(os.homedir(), 'Applications', path.basename(app))];
 }

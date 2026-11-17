@@ -86,7 +86,10 @@ function workspaceOf(uris: unknown): string {
   try {
     const first = list(parseJson(String(uris || '[]')))[0];
     if (typeof first !== 'string') return '';
-    return first.startsWith('file://') ? fileURLToPath(first) : first || '';
+    if (!first.startsWith('file://')) return first || '';
+    // A file URL without a drive letter is refused by fileURLToPath on Windows (POSIX-style
+    // records kept from elsewhere); its decoded path is still better than nothing.
+    try { return fileURLToPath(first); } catch { return decodeURIComponent(new URL(first).pathname); }
   } catch { return ''; }
 }
 

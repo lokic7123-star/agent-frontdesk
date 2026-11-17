@@ -25,8 +25,9 @@ function resolveFile(cwd: string, requested: unknown, roots: string[] = []): { f
   const bases = [cwd, ...roots].filter(Boolean);
   if (!bases.length) throw refuse(404, '这个会话没有记录工作目录，无法预览文件');
   const asked = String(requested || '').trim().replace(/^file:\/\//, '').replace(/:(\d+)(:\d+)?$/, '');
-  // `~/…` is the home folder, as the agent's shell reads it.
-  const named = /^~(\/|$)/.test(asked) ? path.join(os.homedir(), asked.slice(1)) : asked;
+  // `~/…` is the home folder, as the agent's shell reads it (HOME first: Git Bash and the like
+  // set it even where os.homedir() would look elsewhere, e.g. USERPROFILE on Windows).
+  const named = /^~(\/|$)/.test(asked) ? path.join(process.env.HOME || os.homedir(), asked.slice(1)) : asked;
   if (!asked || asked.length > 1024 || asked.includes('\0')) throw refuse(400, '文件路径无效');
   const real = (base: string): string | null => { try { return fs.realpathSync(base); } catch { return null; } };
   const reals = bases.map(real).filter((base): base is string => !!base);
@@ -35,7 +36,7 @@ function resolveFile(cwd: string, requested: unknown, roots: string[] = []): { f
   try { file = fs.realpathSync(path.isAbsolute(named) ? named : path.join(reals[0] ?? '', named)); } catch { throw refuse(404, '找不到这个文件'); }
   for (const root of reals) {
     const relative = path.relative(root, file);
-    if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) return { file, relative };
+    if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) return { file, relative: relative.replace(/\\/g, '/') };
   }
   throw refuse(403, '只能预览这个会话工作目录里的文件');
 }

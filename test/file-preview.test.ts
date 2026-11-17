@@ -18,7 +18,12 @@ test('file previews stay inside the session folder and never show secrets or bin
   fs.writeFileSync(path.join(cwd, 'blob.bin'), Buffer.from([1, 0, 2]));
   fs.writeFileSync(path.join(cwd, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   fs.writeFileSync(outside, 'not yours');
-  fs.symlinkSync(outside, path.join(cwd, 'escape.txt'));
+  // Creating a symlink needs Developer Mode or admin on Windows; the escape-by-symlink check
+  // only runs where the link can be made (the realpath refusal itself is platform-neutral).
+  let linked = true;
+  try { fs.symlinkSync(outside, path.join(cwd, 'escape.txt')); } catch (err) {
+    if (process.platform === 'win32' && (err as NodeJS.ErrnoException).code === 'EPERM') linked = false; else throw err;
+  }
 
   assert.deepEqual(previewFile(cwd, 'lib/a.js:2'), { path: 'lib/a.js', size: 8, text: 'one\ntwo\n', truncated: false });
   assert.equal(previewFile(cwd, path.join(cwd, 'lib', 'a.js')).path, 'lib/a.js');
@@ -26,7 +31,7 @@ test('file previews stay inside the session folder and never show secrets or bin
   const refused = (target: string, status: number) => assert.throws(() => previewFile(cwd, target), withStatus(status));
   refused(outside, 403);
   refused('../outside.txt', 403);
-  refused('escape.txt', 403);
+  if (linked) refused('escape.txt', 403);
   refused('.env', 403);
   refused('.git/config', 403);
   refused('blob.bin', 415);

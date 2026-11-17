@@ -291,7 +291,9 @@ test('a queued message can still be steered in, or taken back to edit', async ()
 
 test('Codex steers a desktop-run turn through the desktop IPC as a thread follower', async t => {
   const net = __node_net, codexDesktop = __codex_desktop;
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-')), sock = path.join(dir, 's.sock');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-'));
+  // Windows: AF_UNIX bind of a filesystem path is refused (EACCES); a named pipe stands in.
+  const sock = process.platform === 'win32' ? `\\\\.\\pipe\\frontdesk-ipc-test-${process.pid}` : path.join(dir, 's.sock');
   const seen: unknown[] = [];
   const server = net.createServer(socket => {
     let buffer: Buffer = Buffer.alloc(0); socket.on('error', () => {});
