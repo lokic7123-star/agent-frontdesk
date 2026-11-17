@@ -1,6 +1,6 @@
 # ZCode / WorkBuddy 接入分析（二期准备）
 
-一期交付：`src/server/plugins/zcode.plugin.ts`（接入模板，`BRIDGE_ZCODE_PREVIEW=1` 时
+一期交付：`src/server/templates/zcode.plugin.ts`（接入模板，`BRIDGE_ZCODE_PREVIEW=1` 时
 才在侧栏出现）+ 本文。目标：二期照本文把真 bridge 填进模板，走 `src/shared/contract.ts`
 单文件契约，页面共用侧栏、对话、输入框与文件预览。
 
@@ -42,7 +42,7 @@
    `interrupt/steer/observe/usage` 按能力开关；全部窄化自 `unknown`（`shared/guards.ts`）。
 3. 写 `src/server/native/profiles/zcode.json`（若走 UIA）：先用驱动 `inspect` 导出真
    实控件树再写定位器，`probe` 验证每个 key 唯一命中。
-4. 把 `plugins/zcode.plugin.ts` 的 setup 换成真 bridge（照 antigravity.plugin.ts 的
+4. 把 `templates/zcode.plugin.ts` 的 setup 换成真 bridge（照 antigravity.plugin.ts 的
    registerEngine 形状），去掉 `BRIDGE_ZCODE_PREVIEW` 门控。
 5. 验收：真机闭环（网页发消息 → 桌面端静默响应 → 网页回显）+ `npm test` 用替身覆盖
    新增解析逻辑 + 中文界面可用。

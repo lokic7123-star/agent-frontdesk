@@ -1,7 +1,9 @@
 import { appPlaces, firstExisting } from '../services/app-assets.js';
 import type { PluginAbout, PluginSetup } from '../../shared/contract.js';
 // A template for the ZCode desktop app (Electron, D:\Zcode or %LOCALAPPDATA%\Programs\Zcode),
-// prepared for the phase-2 integration. Everything an integration needs is in
+// prepared for the phase-2 integration. This file lives in src/server/templates/ on purpose:
+// the plugin host only loads src/server/plugins/*.plugin.ts, so the template is typechecked
+// but never discovered until it is copied into plugins/ with a real bridge. Everything an integration needs is in
 // docs/zcode-integration.md (the app's local record, the channels it may speak, the steps);
 // src/shared/contract.ts stays the single contract. Nothing here drives the app yet: setup
 // says so plainly instead of registering an engine that cannot deliver.
