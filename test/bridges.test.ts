@@ -384,7 +384,7 @@ test('Antigravity starts a new chat in a folder through the language server, and
 
 test('Claude and Antigravity usage map native quota data to remaining-percent windows', async () => {
   const { usageOf } = __claude_bridge;
-  const { quotaOf } = __antigravity_bridge;
+  const { quotaOf, groupsOf } = __antigravity_bridge;
   const { quotaLabel } = await import('../src/client/js/navigation.js');
   const claude = usageOf({ subscription_type: 'max', rate_limits_available: true, rate_limits: { five_hour: { utilization: 30, resets_at: '2026-11-08T15:00:00Z' }, seven_day: { utilization: 55, resets_at: null }, model_scoped: [{ display_name: 'Fable', utilization: 10, resets_at: null }] } });
   assert.equal(quotaLabel(claude), '5h 70% · 7d 45%');
@@ -413,6 +413,26 @@ test('Claude and Antigravity usage map native quota data to remaining-percent wi
   assert.equal(quotaLabel(quotaOf({ configs: [{ label: 'A', quotaInfo: { remainingFraction: 0.9 } }, { label: 'B', quotaInfo: { resetTime: '2026-11-13T04:44:40Z' } }] }, 'B')), 'B 0%');
   assert.equal(agy.windows?.length, 2);
   assert.equal(quotaLabel({ available: false, short: '未登录' }), '未登录');
+  // The desktop's own grouping: RetrieveUserQuotaSummary answers groups of models, a weekly and
+  // a 5-hour window each, as the quota panel draws them (a real answer, trimmed to its shape).
+  const grouped = groupsOf({ response: { groups: [
+    { displayName: 'Gemini Models', description: 'Models within this group: Gemini 4 Hydrogen, Gemini 3.8 Flash', buckets: [
+      { bucketId: 'gemini-weekly', displayName: 'Weekly Limit Remaining', window: 'weekly', remainingFraction: 0.82, resetTime: '2026-11-25T15:57:28Z' },
+      { bucketId: 'gemini-5h', displayName: 'Five Hour Limit Remaining', window: '5h', remainingFraction: 0.37, resetTime: '2026-11-18T20:57:28Z' },
+    ] },
+    { displayName: 'Claude and GPT models', buckets: [
+      { bucketId: '3p-weekly', window: 'weekly', remainingFraction: 1, resetTime: '2026-11-25T16:12:03Z' },
+      { bucketId: '3p-5h', window: '5h', remainingFraction: 1, resetTime: '2026-11-18T21:12:03Z' },
+    ] },
+    { displayName: 'Gemini 4 Argon', description: 'For paid Pro plans, Argon quota is separate.', buckets: [
+      { bucketId: 'gemini-argon-wtu-weekly', window: 'weekly', remainingFraction: 0.25, resetTime: '2026-11-25T15:41:09Z' },
+    ] },
+  ] } });
+  assert.deepEqual(grouped.windows?.map(item => item.label), ['Gemini 模型 · 每周限额', 'Gemini 模型 · 5 小时限额', 'Claude 和 GPT 模型 · 每周限额', 'Claude 和 GPT 模型 · 5 小时限额', 'Gemini 4 Argon · 每周限额']);
+  assert.deepEqual(grouped.windows?.map(item => item.remainingPercent), [82, 37, 100, 100, 25]);
+  assert.deepEqual(grouped.windows?.map(item => item.windowMinutes), [10080, 300, 10080, 300, 10080]);
+  assert.equal(grouped.windows?.at(-1)?.resetsAt, Date.parse('2026-11-25T15:41:09Z') / 1000);
+  assert.equal(groupsOf({ response: { groups: [] } }).available, false);
 });
 
 test('dictation relays audio to the engine, publishes the running transcript and merges Antigravity segments', async () => {

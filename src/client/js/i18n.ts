@@ -71,6 +71,10 @@ const EN: Record<string, string> = {
   // header and chat details
   '打开侧边栏': 'Open preview panel', '关闭侧边栏': 'Close preview panel', '侧边栏（⌘ \\\\）': 'Preview panel (⌘ \\)', '查看会话信息': 'Chat details', '在桌面端打开这个会话': 'Open this chat in the desktop app', '会话信息': 'Chat details', '关闭提示': 'Dismiss', '关闭': 'Close', '最小化': 'Minimize', '最大化或还原': 'Maximize or restore',
   '引擎': 'AI', '会话 ID': 'Session ID', '工作目录': 'Working directory', '由桌面端管理': 'Set by the desktop app', '模型': 'Model', 'Web 端沿用的桌面设置': 'Desktop settings in use',
+  // Antigravity's quota windows, grouped as the desktop's own panel groups them.
+  'Gemini 模型 · 每周限额': 'Gemini models · Weekly limit', 'Gemini 模型 · 5 小时限额': 'Gemini models · 5-hour limit',
+  'Claude 和 GPT 模型 · 每周限额': 'Claude and GPT models · Weekly limit', 'Claude 和 GPT 模型 · 5 小时限额': 'Claude and GPT models · 5-hour limit',
+  'Gemini 4 Argon · 每周限额': 'Gemini 4 Argon · Weekly limit',
   '推理': 'effort', '权限': 'permissions', '（取自最近使用的桌面会话）': ' (from your latest desktop session)', '桌面端': 'Desktop app', '活跃': 'Active', '历史会话': 'Idle',
   '选择会话后查看工作目录与模型信息': 'Open a chat to see its folder and model',
   // conversation
@@ -153,6 +157,8 @@ const REPORTS: Record<string, string> = {
   '当前会话已有任务正在执行': 'This chat already has a turn running', '正在重新确认引擎状态，任务没有被判定失败': 'Reconnecting. The turn has not failed.',
   '这个引擎不支持在运行中插话，可以排队到这一轮结束后发送': "This AI can't take messages mid-turn. Queue it for after this turn instead.", '这条排队消息已经发出或不存在': 'That queued message was already sent or removed',
   '排队的消息太多了': 'Too many messages in the queue', '没有正在执行的任务': 'Nothing is running', '请在原桌面端停止此任务': 'Stop this one from the desktop app', '审批不存在或已失效': 'That approval request has expired', '找不到这个会话': 'Chat not found', '这一轮已经结束，消息已排队': 'That turn has ended, so your message is queued',
+  // Antigravity's quota groups and windows, as its own panel names them.
+  'Gemini 模型': 'Gemini models', 'Claude 和 GPT 模型': 'Claude and GPT models', '每周限额': 'Weekly limit', '5 小时限额': '5-hour limit',
   '审批已失效': 'That approval request has expired', '请选择文件': 'Choose a file', '附件不存在，请重新上传': 'That attachment is gone. Upload it again.', '请输入首条消息': 'Type a message first',
   '引擎未返回会话 ID': "The AI didn't return a session", '请输入消息或添加附件': 'Type a message or attach a file', '这个引擎没有立即发送': "This AI doesn't support Send now", '读取文件失败': "Couldn't open this file", '服务异常': 'Something went wrong',
   '正在处理任务': 'Working…', '需要批准操作': 'Needs your approval', '已完成。': 'Done.', '执行失败': 'Failed', '引擎正在重试': 'Retrying…', '批准操作': 'Approve this action', '本轮总结': 'Wrap-up', '更新任务清单': 'Updated the plan',

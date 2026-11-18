@@ -2049,3 +2049,8 @@ html[data-wco="1"] .wco-buttons button { width: 46px; display: flex; align-items
 html[data-wco="1"] .wco-buttons button:hover { background: var(--surface); color: var(--text); }
 html[data-wco="1"] .wco-buttons #wco-close:hover { background: var(--negative, #c4351f); color: #fff; }
 html[data-wco="1"] .wco-buttons .lucide { width: 15px; height: 15px; }
+
+/* The working "chip" of three dots next to a face is gone: the working sprite and its ring
+   already say so, and the pill sat over the session list's own heading (the rail is 72px wide,
+   so anything tucked against a face lands inside the sidebar). */
+[data-rail="compact"] .speech-bubble.is-chip { display: none; }

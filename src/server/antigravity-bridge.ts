@@ -154,6 +154,26 @@ function mergeTranscript(previous: string, next: string, final: boolean): string
   return at > 0 ? before.slice(0, at) + current : before.endsWith(current) ? before : before + current;
 }
 
+// The desktop's own quota panel groups the account's models and shows a weekly and a 5-hour
+// window per group ("Within each group, models share a weekly limit and a 5-hour limit", the
+// app's own text). The language server answers RetrieveUserQuotaSummary with exactly that
+// grouping; its names are the panel's, translated where the official Chinese panel names them.
+const GROUP_NAMES: Record<string, string> = { 'Gemini Models': 'Gemini 模型', 'Claude and GPT models': 'Claude 和 GPT 模型' };
+const WINDOW_NAMES: Record<string, { name: string; minutes: number }> = { weekly: { name: '每周限额', minutes: 10080 }, '5h': { name: '5 小时限额', minutes: 300 } };
+function groupsOf(summary: unknown): Usage {
+  const windows: Array<UsageWindow & { label: string; remainingPercent: number }> = [];
+  for (const group of list(get(summary, 'response', 'groups'))) {
+    const groupName = String(get(group, 'displayName') || ''), name = GROUP_NAMES[groupName] || groupName;
+    for (const bucket of list(get(group, 'buckets'))) {
+      const known = WINDOW_NAMES[String(get(bucket, 'window'))] || { name: String(get(bucket, 'displayName') || '额度'), minutes: null as number | null };
+      const remaining = Math.max(0, Math.min(100, Number(get(bucket, 'remainingFraction') ?? 0) * 100));
+      const reset = Date.parse(String(get(bucket, 'resetTime') || ''));
+      windows.push({ id: String(get(bucket, 'bucketId')) || `${groupName} ${known.name}`, label: `${name} · ${known.name}`, remainingPercent: remaining, usedPercent: 100 - remaining, windowMinutes: known.minutes, resetsAt: Number.isFinite(reset) ? Math.round(reset / 1000) : null });
+    }
+  }
+  return { available: !!windows.length, windows, reason: windows.length ? undefined : 'Antigravity 没有返回模型额度' };
+}
+
 // Response layouts differ between versions, so collect every model entry carrying quotaInfo.
 function quotaOf(status: unknown, current = ''): Usage {
   const windows: Array<UsageWindow & { label: string; remainingPercent: number }> = [], seen = new Set<string>();
@@ -578,11 +598,15 @@ class AntigravityBridge extends EventEmitter {
     return { session, turns };
   }
 
-  // Per-model quota from the language server Antigravity itself runs. Reachable only
-  // with the address and CSRF token Antigravity injects into processes it starts.
+  // Per-group quota from the language server Antigravity itself runs, in the desktop's own
+  // grouping (Gemini models / Claude and GPT models / Gemini 4 Argon, a weekly and a 5-hour
+  // window each). Reachable only with the address and CSRF token Antigravity injects into
+  // processes it starts. An older server without that answer falls back to per-model numbers.
   async getUsage(): Promise<Usage> {
     const reason = this.sendBlockedReason();
     if (reason) return { available: false, reason, short: reason === NO_LS ? '未运行' : '未安装' };
+    const summary = await this.ls('RetrieveUserQuotaSummary', {}, { timeout: 10000 }).catch(() => null);
+    if (summary) { const grouped = groupsOf(summary); if (grouped.available) return grouped; }
     const status = await this.ls('GetUserStatus', {}, { timeout: 10000 });
     // Lead with the model of the most recent conversation, as the desktop picker does.
     let current = '';
@@ -969,4 +993,4 @@ class AntigravityBridge extends EventEmitter {
   }
   dispose(): void { for (const watcher of this.activeWatchers.values()) watcher.cleanup(); this.activeWatchers.clear(); }
 }
-export { AntigravityBridge, quotaOf, mergeTranscript, recordsOfStep };
+export { AntigravityBridge, groupsOf, quotaOf, mergeTranscript, recordsOfStep };
