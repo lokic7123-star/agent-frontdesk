@@ -1,5 +1,7 @@
 # HANDOFF — agent-frontdesk Windows 11 移植
 
+> **2026-11-18 会话收口（只追加不覆盖）**：**fix: 修复 repoKeyOf 异常与逻辑缺陷**——① **问题/目标**：完成 fix: 修复 repoKeyOf 异常与逻辑缺陷；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 35db111（变更 antigravity-bridge.ts, bridges.test.ts）；④ **结果**：提交 35db111 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
+
 > **2026-11-18 会话收口（只追加不覆盖）**：**feat: 实现并更新 HANDOFF.md, windows-deploy.md, windows-port-notes.md 等 5 个文件**——① **问题/目标**：完成 feat: 实现并更新 HANDOFF.md, windows-deploy.md, windows-port-notes.md 等 5 个文件；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 9541d98（变更 HANDOFF.md, windows-deploy.md, windows-port-notes.md, Program.cs 等 5 个文件）；④ **结果**：提交 9541d98 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
 
 > **2026-11-18 会话收口（只追加不覆盖）**：**feat: 实现 uriPath, normPath 核心功能**——① **问题/目标**：完成 feat: 实现 uriPath, normPath 核心功能；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 acf9f14（变更 HANDOFF.md, README.md, README.zh-CN.md, windows-deploy.md 等 36 个文件）；④ **结果**：提交 acf9f14 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
