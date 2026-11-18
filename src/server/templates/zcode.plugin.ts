@@ -2,7 +2,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { appPlaces, firstExisting } from '../services/app-assets.js';
 import type { PluginAbout, PluginSetup } from '../../shared/contract.js';
-// A template for the ZCode desktop app (Electron, D:\Zcode or %LOCALAPPDATA%\Programs\Zcode),
+// A template for the ZCode desktop app (Electron, %LOCALAPPDATA%\Programs\Zcode),
 // prepared for the phase-2 integration. This file lives in src/server/templates/ on purpose:
 // the plugin host only loads src/server/plugins/*.plugin.ts, so the template is typechecked
 // but never discovered until it is copied into plugins/ with a real bridge. Everything an integration needs is in

@@ -26,7 +26,7 @@
 - **坑：StartCascade 必须显式带模型**。language server 2.32.1 对客户端启动的 cascade
   报 "plan model not specified"。已在 `newConversation` 里带
   `config.plannerConfig.requestedModel`（人选的模型，否则 getModels() 第一个）。
-- **坑：EPHEMERAL_MESSAGE 步骤**。MCP（如 OpenViking 记忆注入）会向轨迹注入系统通知步骤，
+- **坑：EPHEMERAL_MESSAGE 步骤**。MCP（如记忆注入）会向轨迹注入系统通知步骤，
   且桌面端可能先翻转 DB 的 idle 标志、后写终态步骤。`turnOutcome` 已改为：
   跳过 EPHEMERAL；completed 必须有 PLANNER_RESPONSE/NOTIFY_USER 证据；仅 USER_INPUT
   后跟时保持等待（不再凭"没有错误"就猜完成）。
@@ -34,11 +34,11 @@
   `config.ts` 的 `winSpawnArgs()` 走 `cmd.exe /d /s /c` + `windowsVerbatimArguments: true` 转义调用，移除
   `shell: true` 以消除 Node 24 `DEP0190` 警告与换行截断；`editedFile()` 改为 `/[\\/]\.system_generated[\\/]/`
   同时拦截正反斜杠内部路径，`parseRecords()` 对比 `uploadOf()` 与 `media[].uri` 时统一做 `file://` 解码和正反斜杠/盘符大小写归一化。
-- 会话列表（conversation_summaries.db，bridge 查询 LIMIT 200 封顶；当前库顶层会话 241 条）、cwd（Windows 路径）、模型清单（18 个模型）与配额（81.8% ~ 100%）均真机读通，历史对话（turns/steps/artifacts）和中文/空格路径的 `file:///d:/...` 文件预览实机返回 200。`openFile` 已适配在 Windows 调用 `Antigravity.exe`。旧会话无转录且未加载时 LS 返回 404 "trajectory not found"——与上游 macOS 行为一致（上游 Limits 也承认旧会话读取靠替身覆盖），非移植回归。
+- 会话列表（`conversation_summaries.db`，bridge 查询 `LIMIT 200` 封顶，已排除 CLI、子代理、已归档与零时间戳记录）、`cwd`（Windows 路径）、模型清单与配额均真机读通，历史对话（`turns`/`steps`/`artifacts`）和中文/空格路径的 `file:///d:/...` 文件预览实机返回 `200`。`openFile` 已适配在 Windows 调用 `Antigravity.exe`。旧会话无转录且未加载时 LS 返回 404 "trajectory not found"——与上游 macOS 行为一致（上游 Limits 也承认旧会话读取靠替身覆盖），非移植回归。
 
 ### Codex（MSIX 桌面版读通道 + 模型 + 额度真机验证 ✅；IPC 管道已核实，发消息待交互窗口实测）
 - 本机通过 Microsoft Store / MSIX 安装了官方 `OpenAI.Codex`（`C:\Program Files\WindowsApps\OpenAI.Codex_...\app\`，Alias `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe`）。`config.ts` 通过 `fs.readlinkSync` 解析该别名，自动发现 `resources\codex.exe`、`resources\app.asar` 与 `assets\icon.png`，且 `.exe`/`.cmd`/`.bat` 优先于无扩展名 npm shim；`app-server` 经 `winSpawnArgs()` 启动。
-- 真机实测全通：App Server (`codex app-server --stdio`) 启动成功，读取 10 个模型、Plus 额度（2 个窗口：5h 与 weekly）、3 个项目、9 条会话（含 Codex 本地线程与 ChatGPT 模式会话/项目）与完整历史回合、887B PNG 图标和 1.3MB WebP 精灵图；页面模式切换（Codex ↔ ChatGPT）实机渲染正常。`codex-projects.ts` 与 `codex-bridge.ts` 已补齐反斜杠与盘符大小写归一化。
+- 真机实测全通：App Server (`codex app-server --stdio`) 启动成功，读取模型列表、Plus 额度（`5h` 与 `weekly` 窗口）、桌面项目分组、本地线程与 ChatGPT 模式会话/项目历史回合、桌面应用图标与精灵图；页面模式切换（Codex ↔ ChatGPT）实机渲染正常。`codex-projects.ts` 与 `codex-bridge.ts` 已补齐反斜杠与盘符大小写归一化。
 - 通过读取本机 `app.asar`（`early-bootstrap-824` 模块 `92272`）核实 Windows 真实 IPC 管道名为 `\\.\pipe\codex-ipc`（已替换原占位名）；`wake()` 已适配 Windows `cmd.exe /d /s /c` + `windowsVerbatimArguments: true` 调用 `start "" "codex://threads/wake/..."`。实际纯文本发送、唤醒与建聊/改模型交互效果待普通交互桌面窗口实测（`Program.cs` 已补齐全套 UIA 命令协议）。
 
 ### Claude

@@ -39,7 +39,7 @@ npm start
 | `ANTIGRAVITY_HOME` | Antigravity 数据目录 | `~/.gemini/antigravity` |
 | `ANTIGRAVITY_APP_ICON` | Antigravity 图标来源 | `%LOCALAPPDATA%\Programs\antigravity\resources\app.asar` |
 | `AGENTAPI_BIN` | Antigravity 命令行工具 | `~/.gemini/antigravity/bin/agentapi.exe`、`.bat`（本机核实为 `agentapi.bat`，通过 `winSpawnArgs` 调用）及 PATH 中的 `agentapi.*` |
-| `ZCODE_APP_ASAR` / `ZCODE_HOME` | ZCode 模板探测用 | `%LOCALAPPDATA%\Programs\Zcode\resources\app.asar`（或 `D:\Zcode\resources\app.asar`） / `~/.zcode` |
+| `ZCODE_APP_ASAR` / `ZCODE_HOME` | ZCode 模板探测用 | `%LOCALAPPDATA%\Programs\Zcode\resources\app.asar` / `~/.zcode` |
 | `BRIDGE_ZCODE_PREVIEW` | 模板位于 `src/server/templates/zcode.plugin.ts`（默认不被插件宿主扫描加载）；复制到 `src/server/plugins/zcode.plugin.ts` 且设为 `1` 时才在侧栏出现（未实现引擎，启用会给出二期提示） | 不加载 |
 | `BRIDGE_DEFAULT_CWD` / `BRIDGE_UPLOADS_DIR` / `BRIDGE_SETTINGS_FILE` / `BRIDGE_PLUGIN_DIR` / `BRIDGE_MODEL_CATALOG` / `BRIDGE_DICTATION_ENGINE` / `HTTPS_PORT` | 同上游 README | 同上游 |
 

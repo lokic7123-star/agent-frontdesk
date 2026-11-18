@@ -50,7 +50,7 @@ test('projects start folded, remember being opened, and long lists fold behind "
   assert.equal(clampSidebarWidth(50), 200); assert.equal(clampSidebarWidth(900, 1400), 520);
 });
 
-test('"最近" lists every chat newest first, project ones tagged; a search shows only it', async () => {
+test('"最近" lists only ungrouped chats unless searching; a search shows project tags too', async () => {
   const { organize, renderSidebar, SidebarPrefs, CHAT_ROWS } = await import('../src/client/js/sidebar.js');
   const sessions = [
     session('new', { metadata: { group: { id: 'p', name: 'Proj' } } }),
@@ -63,12 +63,17 @@ test('"最近" lists every chat newest first, project ones tagged; a search show
   assert.deepEqual(at(tree.recents, 0).children.map(item => item.id), ['kid']);
   const html = renderSidebar(sessions, { engineId: 'x', prefs: new SidebarPrefs(null) });
   assert.match(html, /data-side-section="projects"/); assert.match(html, /最近/);
-  assert.match(html, /data-session="new"[^]*?side-project-tag[^>]*>Proj</);
-  assert.doesNotMatch(renderSidebar(sessions, { engineId: 'x', query: 'o', prefs: new SidebarPrefs(null) }), /data-side-section="projects"/);
-  // An old chat in a project does not pull the long list down to it; a loose one does.
-  const many = Array.from({ length: CHAT_ROWS + 5 }, (_, index) => session(`s${index}`, { metadata: { group: index === CHAT_ROWS + 4 ? null : { id: 'p', name: 'P' } } }));
+  const recentHtml = html.split('data-side-section="recents"')[1] ?? '';
+  assert.match(recentHtml, /data-session="loose"/);
+  assert.doesNotMatch(recentHtml, /data-session="new"/);
+  assert.doesNotMatch(renderSidebar([at(sessions, 0), at(sessions, 3)], { engineId: 'x', prefs: new SidebarPrefs(null) }), /data-side-section="recents"/);
+  const searched = renderSidebar(sessions, { engineId: 'x', query: 'e', prefs: new SidebarPrefs(null) });
+  assert.doesNotMatch(searched, /data-side-section="projects"/);
+  assert.match(searched, /data-session="new"[^]*?side-project-tag[^>]*>Proj</);
+  // An ungrouped chat at the end pulls the long list down to it.
+  const many = Array.from({ length: CHAT_ROWS + 5 }, (_, index) => session(`s${index}`, { metadata: { group: null } }));
   const recentRows = (currentId: string) => must((renderSidebar(many, { engineId: 'x', currentId, prefs: new SidebarPrefs(null) }).split('data-side-section="recents"')[1] ?? '').match(/data-session=/g)).length;
-  assert.equal(recentRows(`s${CHAT_ROWS + 3}`), CHAT_ROWS);
+  assert.equal(recentRows('s0'), CHAT_ROWS);
   assert.equal(recentRows(`s${CHAT_ROWS + 4}`), CHAT_ROWS + 5);
 });
 

@@ -9,7 +9,7 @@
 
 | 项 | 事实 |
 | --- | --- |
-| 应用本体 | `D:\Zcode\ZCode.exe`（Electron；`resources\app.asar` 在旁） |
+| 应用本体 | `%LOCALAPPDATA%\Programs\Zcode\ZCode.exe`（Electron；`resources\app.asar` 在旁） |
 | 数据目录 | `%USERPROFILE%\.zcode` |
 | 会话（CLI 子代理） | `~/.zcode/cli/agents/sess_<uuid>/agent_<uuid>/{metadata.json, output.txt, task.output}`；metadata 含 agentId、childSessionId、createdAt、cwd（Windows 路径）、description、metadataFile |
 | 应用状态 | `~/.zcode/v2/`：bot-config.v3.json、bot-state.v2/v3.json、credentials.json、config.json、logs/<日期>.log、tasks-index.sqlite(+wal/shm) |

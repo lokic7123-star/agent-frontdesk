@@ -131,5 +131,5 @@ test('filePathOf handles Windows file:/// URIs with encoded colons and CJK inlin
   Reflect.set(globalThis, 'window', Reflect.get(globalThis, 'window') || {});
   const { filePathOf } = await import('../src/client/js/renderers.js');
   assert.equal(filePathOf('file:///c%3A/Users/me/app.ts'), 'c:/Users/me/app.ts');
-  assert.equal(filePathOf('D:\\总数据库\\HANDOFF.md', { link: false }), 'D:/总数据库/HANDOFF.md');
+  assert.equal(filePathOf('D:\\工作区\\README.md', { link: false }), 'D:/工作区/README.md');
 });

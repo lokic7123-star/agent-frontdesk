@@ -79,7 +79,7 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
       ? [path.join(agyHome, 'bin', 'agentapi.exe'), path.join(agyHome, 'bin', 'agentapi.bat'), 'agentapi.exe', 'agentapi.cmd', 'agentapi.bat', 'agentapi']
       : [path.join(agyHome, 'bin/agentapi'), 'agentapi']),
     // The ZCode template's own places; the phase-2 bridge reads them too.
-    zcodeAppAsar: env.ZCODE_APP_ASAR || (win ? firstHere([path.join(localPrograms, 'Zcode', 'resources', 'app.asar'), 'D:\\Zcode\\resources\\app.asar']) : undefined),
+    zcodeAppAsar: env.ZCODE_APP_ASAR || (win ? firstHere([path.join(localPrograms, 'Zcode', 'resources', 'app.asar')]) : undefined),
     zcodeHome: env.ZCODE_HOME || path.join(home, '.zcode'),
     catalogs,
   };
