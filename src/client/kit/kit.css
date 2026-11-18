@@ -60,12 +60,12 @@ html[data-ui="kit"] .chat-header { background: var(--kit-bg); }
 
 /* ---------- conversation ---------- */
 html[data-ui="kit"] .conversation { background: var(--kit-bg); }
-html[data-ui="kit"] .timeline { width: min(768px, calc(100% - 32px)); padding: 28px 18px 40px; }
+html[data-ui="kit"] .timeline { width: min(1040px, calc(100% - 48px)); padding: 28px 18px 40px; }
 html[data-ui="kit"] .turn.kit-turn { margin-bottom: 28px; }
 html[data-ui="kit"] .kit-user { display: flex; flex-direction: column; align-items: flex-end; margin: 0 0 22px; }
 html[data-ui="kit"] .kit-user .user-message { margin: 0; max-width: 80%; background: var(--kit-bubble); color: var(--kit-text); padding: 10px 16px; border-radius: 16px; font-size: 15px; line-height: 1.6; }
 html[data-ui="kit"] .kit-body { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
-html[data-ui="kit"] .kit-text, html[data-ui="kit"] .kit-tools, html[data-ui="kit"] .kit-thinking { max-width: 676px; }
+html[data-ui="kit"] .kit-text, html[data-ui="kit"] .kit-tools, html[data-ui="kit"] .kit-thinking { max-width: 840px; }
 html[data-ui="kit"] .kit-text { font-size: 15px; line-height: 1.65; color: var(--kit-text); margin: 0 0 16px; }
 html[data-ui="kit"] .kit-text p { margin: 0 0 12px; }
 html[data-ui="kit"] .kit-text p:last-child { margin-bottom: 0; font-size: inherit; padding: 0; }
@@ -156,7 +156,7 @@ html[data-ui="kit"] .empty-conversation > p { font-size: 14px; color: var(--kit-
 html[data-ui="kit"] .empty-conversation .secondary-button { border-radius: 8px; border: 1px solid var(--kit-card-line); background: var(--kit-bg); color: var(--kit-text); }
 
 /* ---------- composer: one pill, + on the left, mic and stop on the right, model below ---------- */
-html[data-ui="kit"] .composer-area { width: min(768px, calc(100% - 32px)); padding-bottom: 34px; }
+html[data-ui="kit"] .composer-area { width: min(1040px, calc(100% - 48px)); padding-bottom: 34px; }
 html[data-ui="kit"] .composer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; min-height: 45px; padding: 6px 10px; background: var(--kit-input); border: 1px solid var(--kit-input-line); border-radius: 16px; box-shadow: var(--kit-shadow); }
 html[data-ui="kit"] .composer:focus-within { border-color: var(--kit-input-line); }
 html[data-ui="kit"] .composer-toolbar, html[data-ui="kit"] .composer-options { display: contents; }
@@ -266,7 +266,7 @@ html[data-ui="kit"] .kit-user:hover .kit-user-meta { opacity: 1; }
 html[data-ui="kit"] .kit-user-meta:empty { display: none; }
 
 /* "Worked for 23m 28s ›": the turn's work folded above its answer, with a rule under it. */
-html[data-ui="kit"] .kit-worked { max-width: 676px; margin: 0 0 16px; color: var(--kit-muted); font-size: 15px; }
+html[data-ui="kit"] .kit-worked { max-width: 840px; margin: 0 0 16px; color: var(--kit-muted); font-size: 15px; }
 html[data-ui="kit"] p.kit-worked, html[data-ui="kit"] .kit-worked > summary { padding-bottom: 10px; border-bottom: 1px solid var(--kit-rule); }
 html[data-ui="kit"] .kit-worked > summary { display: flex; align-items: center; gap: 4px; list-style: none; cursor: pointer; }
 html[data-ui="kit"] .kit-worked > summary::-webkit-details-marker { display: none; }
@@ -277,7 +277,7 @@ html[data-ui="kit"] .kit-worked-body { padding-top: 14px; }
 html[data-ui="kit"] .kit-worked.is-live { border-bottom: 0; padding-bottom: 0; }
 
 /* The card of a page the desktop opened in its Browser pane. */
-html[data-ui="kit"] .kit-preview { display: flex; align-items: center; gap: 16px; max-width: 676px; margin: 4px 0 16px; padding: 14px 16px 14px 20px; border: 1px solid var(--kit-card-line); border-radius: 12px; color: var(--kit-text); text-decoration: none; }
+html[data-ui="kit"] .kit-preview { display: flex; align-items: center; gap: 16px; max-width: 840px; margin: 4px 0 16px; padding: 14px 16px 14px 20px; border: 1px solid var(--kit-card-line); border-radius: 12px; color: var(--kit-text); text-decoration: none; }
 html[data-ui="kit"] .kit-preview:hover { background: var(--kit-hover); }
 html[data-ui="kit"] .kit-preview-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 html[data-ui="kit"] .kit-preview-name, html[data-ui="kit"] .kit-preview-where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -286,7 +286,7 @@ html[data-ui="kit"] .kit-preview-where { font-size: 14px; color: var(--kit-muted
 html[data-ui="kit"] .kit-preview-open { flex: none; padding: 5px 14px; border-radius: 8px; background: var(--kit-code); font-size: 14px; color: var(--kit-soft); }
 
 /* Codex turn diff card. */
-html[data-ui="kit"] .kit-diff { max-width: 676px; margin: 4px 0 16px; border: 1px solid var(--kit-card-line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+html[data-ui="kit"] .kit-diff { max-width: 840px; margin: 4px 0 16px; border: 1px solid var(--kit-card-line); border-radius: 12px; overflow: hidden; font-size: 14px; }
 html[data-ui="kit"] .kit-diff-head { padding: 10px 14px; font-weight: 500; color: var(--kit-text); }
 html[data-ui="kit"] .kit-diff ul { list-style: none; margin: 0; padding: 0; }
 html[data-ui="kit"] .kit-diff li { display: flex; align-items: center; gap: 12px; padding: 7px 14px; border-top: 1px solid var(--kit-card-line); }

@@ -1,0 +1,15 @@
+[package]
+name = "frontdesk-shell"
+version = "0.1.0"
+edition = "2021"
+description = "Native frameless WebView2 window for the Agent Frontdesk console"
+
+[dependencies]
+tao = "0.34"
+wry = "0.57"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

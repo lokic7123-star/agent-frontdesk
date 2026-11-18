@@ -420,7 +420,7 @@ select {
 }
 
 .timeline {
-  width:min(800px,calc(100% - 64px));
+  width:min(1040px,calc(100% - 96px));
   margin:auto;
   padding:40px 0 48px;
   min-height:100%
@@ -805,7 +805,7 @@ details[open]>summary .activity summary>.lucide:last-child {
 
 .composer-area {
   position:relative;
-  width:min(800px,calc(100% - 64px));
+  width:min(1040px,calc(100% - 96px));
   margin:0 auto;
   padding-bottom:20px;
   flex:none
@@ -2036,3 +2036,16 @@ html[data-agents="none"] .sidebar, html[data-agents="none"] .chat-header, html[d
 /* Its hover card stays out of the way of its own menu (right-click). */
 .engine-switch[aria-expanded="true"] .quota-card { display: none; }
 @media (prefers-reduced-motion: reduce) { .dock-add.is-inviting, .engine-switch.is-joining, .agent-row.is-pending .switch-knob { animation: none; } .switch, .switch-knob, .agent-face { transition: none; } }
+
+/* App-window mode (window-controls-overlay, js/wco.ts): the page's top strip is the title bar.
+   The chat header and the brand mark drag the window; their interactive children opt out. The
+   caption buttons sit left of the system's own, which the page keeps clear (--caption-w). */
+.wco-buttons { display: none; }
+html[data-wco="1"] .chat-header { height: var(--titlebar-h, 40px); app-region: drag; -webkit-app-region: drag; padding-right: calc(var(--caption-w, 138px) + 6px); }
+html[data-wco="1"] .chat-header > *, html[data-wco="1"] .chat-header button { app-region: no-drag; -webkit-app-region: no-drag; }
+html[data-wco="1"] .control-brand { app-region: drag; -webkit-app-region: drag; }
+html[data-wco="1"] .wco-buttons { display: flex; position: fixed; top: 0; right: var(--caption-w, 138px); height: var(--titlebar-h, 40px); z-index: 40; }
+html[data-wco="1"] .wco-buttons button { width: 46px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--muted); cursor: default; }
+html[data-wco="1"] .wco-buttons button:hover { background: var(--surface); color: var(--text); }
+html[data-wco="1"] .wco-buttons #wco-close:hover { background: var(--negative, #c4351f); color: #fff; }
+html[data-wco="1"] .wco-buttons .lucide { width: 15px; height: 15px; }

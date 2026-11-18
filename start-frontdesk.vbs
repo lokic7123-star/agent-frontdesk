@@ -25,9 +25,14 @@ If Not Probe(url) Then
   Next
 End If
 
-' Open as an app-like window (Edge --app: its own window, no address bar, the page's favicon in
-' the taskbar), falling back to the default browser when Edge is not installed.
-OpenAppWindow url
+' The window: the native shell (shell/, frameless WebView2) when built, then the Edge app window,
+' then the default browser.
+If fso.FileExists(dir & "\frontdesk-shell.exe") Then
+  sh.CurrentDirectory = dir
+  sh.Run """" & dir & "\frontdesk-shell.exe""", 1, False
+Else
+  OpenAppWindow url
+End If
 
 Sub OpenAppWindow(u)
   Dim edges, i
@@ -36,7 +41,7 @@ Sub OpenAppWindow(u)
     "C:\Program Files\Microsoft\Edge\Application\msedge.exe")
   For i = 0 To UBound(edges)
     If fso.FileExists(edges(i)) Then
-      sh.Run """" & edges(i) & """ --app=" & u, 1, False
+      sh.Run """" & edges(i) & """ --app=" & u & " --window-size=1560,1024", 1, False
       Exit Sub
     End If
   Next

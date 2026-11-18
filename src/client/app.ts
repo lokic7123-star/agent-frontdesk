@@ -3,6 +3,7 @@ import '@fontsource/inter/latin.css';
 import 'katex/dist/katex.min.css';
 import './style.css';
 import './kit/kit.css';
+import './js/wco.js';
 import { t, say, locale, language, translateDocument } from './js/i18n.js';
 import { DraftBook, ReadMarkers, viewKey, isViewOf, preferredSession, quotaLabel } from './js/navigation.js';
 import { createStore } from './js/store.js';

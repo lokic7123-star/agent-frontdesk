@@ -34,6 +34,7 @@ import ListPlus from 'lucide/dist/esm/icons/list-plus.js';
 import Mail from 'lucide/dist/esm/icons/mail.js';
 import MessagesSquare from 'lucide/dist/esm/icons/messages-square.js';
 import Mic from 'lucide/dist/esm/icons/mic.js';
+import Minus from 'lucide/dist/esm/icons/minus.js';
 import MonitorSmartphone from 'lucide/dist/esm/icons/monitor-smartphone.js';
 import PanelLeft from 'lucide/dist/esm/icons/panel-left.js';
 import PanelLeftClose from 'lucide/dist/esm/icons/panel-left-close.js';
@@ -55,7 +56,7 @@ import X from 'lucide/dist/esm/icons/x.js';
 const drawn: Record<string, unknown> = {
   AppWindow, ArrowDown, ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, ChevronRight, ChevronsRight, CircleAlert, CircleStop, Code, Copy,
   Download, Ellipsis, ExternalLink, File, FileCheck2, FileText, Folder, FolderOpen, FolderSearch, GripVertical, Info, ListChecks, ListPlus,
-  Mail, MessagesSquare, Mic, MonitorSmartphone, PanelLeft, PanelLeftClose, PanelRight, Pencil, Plus, RefreshCw, ScanLine, Search, Send,
+  Mail, MessagesSquare, Mic, Minus, MonitorSmartphone, PanelLeft, PanelLeftClose, PanelRight, Pencil, Plus, RefreshCw, ScanLine, Search, Send,
   Settings, Square, SquarePen, Terminal, Wrench, X,
 };
 const named = (name: string): string => name.replace(/(\w)(\w*)(_|-|\s*)/g, (_all, first: string, rest: string) => first.toUpperCase() + rest.toLowerCase());

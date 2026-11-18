@@ -11,6 +11,8 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/assets/logo/logo-64.png">
   <link rel="apple-touch-icon" href="/assets/logo/logo-180.png">
   <script type="module" src="/app.ts"></script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#242E68">
 </head>
 <body>
   <a class="skip-link" href="#prompt">跳到输入框</a>
@@ -49,6 +51,11 @@
       <span class="header-tools">
         <button class="icon-button" id="session-info" aria-label="查看会话信息" title="查看会话信息"><i data-lucide="info"></i></button>
         <button class="icon-button" id="toggle-panel" aria-label="打开侧边栏" aria-expanded="false" aria-controls="side-panel" title="侧边栏（⌘ \\）"><i data-lucide="panel-right"></i></button>
+      </span>
+      <span class="wco-buttons" aria-hidden="true">
+        <button id="wco-min" aria-label="最小化"><i data-lucide="minus"></i></button>
+        <button id="wco-max" aria-label="最大化或还原"><i data-lucide="square"></i></button>
+        <button id="wco-close" aria-label="关闭"><i data-lucide="x"></i></button>
       </span>
     </header>
     <div class="notice" id="notice" role="alert" hidden><span id="notice-text"></span><button class="icon-button" id="dismiss-notice" aria-label="关闭提示"><i data-lucide="x"></i></button></div>

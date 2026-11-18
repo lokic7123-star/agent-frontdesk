@@ -69,7 +69,7 @@ const EN: Record<string, string> = {
   'Agent 栏': 'Agent rail', '紧凑': 'Compact', '展开': 'Wide', '展开 Agent 栏': 'Widen the agent rail', '收起 Agent 栏': 'Narrow the agent rail', '在 {name} 打开': 'Open in {name}', '聊天数': 'Chats', '窗口宽度超过 1100 像素时才会展开': 'The rail widens once the window is wider than 1100 px.',
   '回复旁的头像': 'Avatars in chat', '显示': 'On', '不显示': 'Off', '头像': 'Your avatar', '换一个': 'Shuffle',
   // header and chat details
-  '打开侧边栏': 'Open preview panel', '关闭侧边栏': 'Close preview panel', '侧边栏（⌘ \\\\）': 'Preview panel (⌘ \\)', '查看会话信息': 'Chat details', '在桌面端打开这个会话': 'Open this chat in the desktop app', '会话信息': 'Chat details', '关闭提示': 'Dismiss', '关闭': 'Close',
+  '打开侧边栏': 'Open preview panel', '关闭侧边栏': 'Close preview panel', '侧边栏（⌘ \\\\）': 'Preview panel (⌘ \\)', '查看会话信息': 'Chat details', '在桌面端打开这个会话': 'Open this chat in the desktop app', '会话信息': 'Chat details', '关闭提示': 'Dismiss', '关闭': 'Close', '最小化': 'Minimize', '最大化或还原': 'Maximize or restore',
   '引擎': 'AI', '会话 ID': 'Session ID', '工作目录': 'Working directory', '由桌面端管理': 'Set by the desktop app', '模型': 'Model', 'Web 端沿用的桌面设置': 'Desktop settings in use',
   '推理': 'effort', '权限': 'permissions', '（取自最近使用的桌面会话）': ' (from your latest desktop session)', '桌面端': 'Desktop app', '活跃': 'Active', '历史会话': 'Idle',
   '选择会话后查看工作目录与模型信息': 'Open a chat to see its folder and model',
