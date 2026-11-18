@@ -269,12 +269,19 @@ test('Antigravity excludes CLI/subagent rows and groups worktrees under their ma
 
   const db = new Database(path.join(dir, 'conversation_summaries.db'));
   db.exec('CREATE TABLE conversation_summaries (conversation_id text, title text, preview text, last_modified_time text, workspace_uris text, not_fully_idle numeric, killed numeric, status text, step_count integer, last_user_input_time text, last_user_input_step_index integer, nesting_depth integer, source text, project_id text, parent_conversation_id text, agent_name text)');
+  db.exec('CREATE TABLE conversations_fts (conversation_id text, chunk_index integer, archived integer)');
   const ins = db.prepare('INSERT INTO conversation_summaries VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  const insFts = db.prepare('INSERT INTO conversations_fts VALUES (?,?,?)');
   const uri = (p: string) => JSON.stringify([__node_url.pathToFileURL(p).href]);
   ins.run('main-1', 'Worktree task', '', '2026-11-18T01:00:00Z', uri(wt), 0, 0, '', 5, '2026-11-18T01:00:00Z', 1, 0, '', 'proj-1', '', '');
+  insFts.run('main-1', -1, 0);
   ins.run('cli-1', 'CLI subagent', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 2, '', -1, 0, 'CORTEX_TRAJECTORY_SOURCE_CLI', 'default-cli-project', '', '');
   ins.run('sub-1', 'Nested agent', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 2, '', -1, 0, '', 'proj-1', 'main-1', 'reviewer');
   ins.run('probe-1', 'Unindexed probe', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 0, '', -1, 0, '', '', '', '');
+  ins.run('arch-1', 'Archived review', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 5, '2026-11-18T02:00:00Z', 1, 0, '', 'proj-1', '', '');
+  insFts.run('arch-1', 0, 0);
+  insFts.run('arch-1', -1, 1);
+  ins.run('zero-1', 'Zero timestamp ghost', '', '0001-01-01 00:00:00+00:00', uri(repo), 0, 0, '', 5, '0001-01-01 00:00:00+00:00', 1, 0, '', 'proj-1', '', '');
   db.close();
 
   const bridge = new AntigravityBridge({ agyHome: dir, agentapiBin: '/bin/false', catalogs: {} }, { ANTIGRAVITY_LS_ADDRESS: '127.0.0.1:9', ANTIGRAVITY_CSRF_TOKEN: 'csrf' });

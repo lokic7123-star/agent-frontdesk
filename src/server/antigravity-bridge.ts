@@ -363,9 +363,18 @@ class AntigravityBridge extends EventEmitter {
   summaries(): Bag[] {
     if (!fs.existsSync(this.dbPath)) return [];
     const rows = readSqlite(this.dbPath, 'SELECT * FROM conversation_summaries WHERE nesting_depth = 0 ORDER BY last_modified_time DESC;');
+    const archived = new Set<string>();
+    try {
+      for (const r of readSqlite(this.dbPath, 'SELECT DISTINCT conversation_id FROM conversations_fts WHERE archived != 0;')) {
+        const id = asText(r['conversation_id']);
+        if (id) archived.add(id);
+      }
+    } catch {}
     return rows.filter(item => {
       const id = asText(item['conversation_id']);
       if (this.ownIds.has(id) || this.activeWatchers.has(id)) return true;
+      if (archived.has(id)) return false;
+      if (asText(item['last_modified_time']).startsWith('0001-')) return false;
       if (item['source'] === 'CORTEX_TRAJECTORY_SOURCE_CLI' || item['project_id'] === 'default-cli-project') return false;
       if (item['parent_conversation_id'] || item['agent_name']) return false;
       if ('project_id' in item) {
