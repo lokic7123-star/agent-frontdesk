@@ -7,7 +7,7 @@
 **One web page for every desktop AI on your computer.**<br>
 To add a new one, send it a prompt and it connects itself.
 
-[![CI](https://github.com/Phz-06/agent-frontdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Phz-06/agent-frontdesk/actions/workflows/ci.yml)
+[![CI](https://github.com/lokic7123-star/agent-frontdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/lokic7123-star/agent-frontdesk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: macOS · Windows 11](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows%2011-lightgrey.svg)
 ![Node 22.16+](https://img.shields.io/badge/node-%E2%89%A5%2022.16-brightgreen.svg)
@@ -59,10 +59,10 @@ Agent Frontdesk puts those desktop apps into one web page. The apps still do the
 
 ## Quick start
 
-You need macOS or Windows 11 and [Node.js](https://nodejs.org) 22.16 or later. This fork ports the project to Windows 11 (its send engine compiles a small .NET helper; see [docs/windows-deploy.md](docs/windows-deploy.md) for what works today and what is still waiting for its desktop app).
+You need macOS or Windows 11 and [Node.js](https://nodejs.org) 22.16 or later. Maintained by LoKi with full macOS and Windows 11 support (its send engine compiles a small .NET helper; see [docs/windows-deploy.md](docs/windows-deploy.md) for what works today and what is still waiting for its desktop app).
 
 ```sh
-git clone https://github.com/Phz-06/agent-frontdesk.git
+git clone https://github.com/lokic7123-star/agent-frontdesk.git
 cd agent-frontdesk
 # On Windows, disable CRLF auto-conversion so source-matching tests see LF:
 git config core.autocrlf false
@@ -141,7 +141,7 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-- Windows 11 port (this fork; still on the roadmap upstream)
+- Windows 11 support (actively maintained)
 - More desktop AIs
 - Full support for desktop apps set to Chinese and other interface languages
 - A login, so you can check in and send from your phone
@@ -159,3 +159,7 @@ Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 [MIT](LICENSE). Agent Frontdesk is an independent project, not affiliated with OpenAI, Anthropic or Google. Product names are trademarks of their owners.
+
+## Acknowledgments
+
+Independently developed and maintained by LoKi. Thanks to [Phz-06/agent-frontdesk](https://github.com/Phz-06/agent-frontdesk) (MIT) — this project referenced its early architectural and design ideas, and retains the original copyright and MIT license notices in [LICENSE](LICENSE).

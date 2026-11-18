@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "One web page for every desktop AI on your computer. Works with Codex, Claude and Antigravity today, and any other desktop AI can connect itself from a single prompt.",
-  "homepage": "https://github.com/Phz-06/agent-frontdesk#readme",
+  "homepage": "https://github.com/lokic7123-star/agent-frontdesk#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Phz-06/agent-frontdesk.git"
+    "url": "git+https://github.com/lokic7123-star/agent-frontdesk.git"
   },
   "bugs": {
-    "url": "https://github.com/Phz-06/agent-frontdesk/issues"
+    "url": "https://github.com/lokic7123-star/agent-frontdesk/issues"
   },
   "main": "dist/server/server.js",
   "scripts": {
@@ -39,7 +39,7 @@
     "local-first",
     "typescript"
   ],
-  "author": "Phz-06",
+  "author": "LoKi",
   "license": "MIT",
   "type": "module",
   "dependencies": {
