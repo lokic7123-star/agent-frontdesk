@@ -30,36 +30,24 @@
   跳过 EPHEMERAL；completed 必须有 PLANNER_RESPONSE/NOTIFY_USER 证据；仅 USER_INPUT
   后跟时保持等待（不再凭"没有错误"就猜完成）。
 - agentapi 在 Windows 是 `bin/agentapi.bat`（execFile 需 shell:true，已处理）。
-- 会话列表（conversation_summaries.db，bridge 查询 LIMIT 200 封顶；当前库顶层会话 241 条）、cwd（Windows 路径）、模型清单
-  均真机读通。旧会话无转录且未加载时 LS 返回 404 "trajectory not found"——与上游
-  macOS 行为一致（上游 Limits 也承认旧会话读取靠替身覆盖），非移植回归。
-- 发送链路实测到账号配额墙（RESOURCE_EXHAUSTED 429，约 131h 后重置）：桌面记录的
-  回合生命周期（completed 空回复/failed 错误）如实回传网页。回复文本待配额重置后补验。
+- 会话列表（conversation_summaries.db，bridge 查询 LIMIT 200 封顶；当前库顶层会话 241 条）、cwd（Windows 路径）、模型清单（18 个模型）与配额（81.8% ~ 100%）均真机读通，历史对话（turns/steps/artifacts）和中文/空格路径的 `file:///d:/...` 文件预览实机返回 200。`openFile` 已适配在 Windows 调用 `Antigravity.exe`。旧会话无转录且未加载时 LS 返回 404 "trajectory not found"——与上游 macOS 行为一致（上游 Limits 也承认旧会话读取靠替身覆盖），非移植回归。
 
-### Codex
-- `~/.codex` 数据目录在本机完整在用（config.toml、sessions、sqlite 等约 80 项），
-  读通道可真机验证；桌面版（ChatGPT app）未安装，IPC 通道（`ipc.sock`/命名管道）
-  待桌面版装机后验证。`CODEX_IPC_PATH` 环境变量已预留。
+### Codex（MSIX 桌面版读通道 + 模型 + 额度真机验证 ✅；IPC 管道已核实，发消息待交互窗口实测）
+- 本机通过 Microsoft Store / MSIX 安装了官方 `OpenAI.Codex`（`C:\Program Files\WindowsApps\OpenAI.Codex_...\app\`，Alias `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe`）。`config.ts` 通过 `fs.readlinkSync` 解析该别名，自动发现 `resources\codex.exe`、`resources\app.asar` 与 `assets\icon.png`。
+- 真机实测全通：App Server (`codex app-server --stdio`) 启动成功，读取 10 个模型、Plus 额度（2 个窗口：5h 与 weekly）、3 个项目、9 条会话（含 Codex 本地线程与 ChatGPT 模式会话/项目）与完整历史回合、887B PNG 图标和 1.3MB WebP 精灵图；页面模式切换（Codex ↔ ChatGPT）实机渲染正常。
+- 通过读取本机 `app.asar`（`early-bootstrap-824` 模块 `92272`）核实 Windows 真实 IPC 管道名为 `\\.\pipe\codex-ipc`（已替换原占位名）；`wake()` 已适配 Windows `cmd.exe /c start "" "codex://threads/wake/..."`。实际发消息唤醒与在交互桌面中走完桌面端回流待桌面窗口启动后实测。
 
 ### Claude
-- 本机未安装 Claude Desktop（`%APPDATA%\Claude`、`~/.claude` 均无）。适配代码就绪
-  （authStatus 的 .cmd shell、`claude.exe` 候选、路径映射），真机验证待装机。
+- 本机未安装 Claude Desktop（`%APPDATA%\Claude`、`~/.claude` 均无）。适配代码就绪（authStatus 与 spawnCli 的 `.cmd` shell、`claude.exe` 候选、路径映射、Windows 下优先读取 `~/.claude/.credentials.json`），真机验证待装机。
 
-### UIA 驱动（Phase 2）
-- C# 驱动（native/win32/uia-driver，net8.0-windows + WPF/WinForms）与 Swift helper
-  同协议（一行 JSON）。真机冒烟：进程发现 + UIA 树读取对运行中的 Electron 应用全通。
-- Electron 的完整 DOM 级 UIA 树需要 accessibility 激活；`inspect` 深度不够时只见原生
-  壳层（Chrome_WidgetWin_1 → RootView）。composer 定位需更深层级或先触发 accessibility。
-- dotnet publish 首次数秒，产物按源码树哈希缓存在 `%LOCALAPPDATA%\agent-frontdesk\`。
+### UIA 驱动与构建/前端实机修复
+- C# 驱动（`native/win32/uia-driver`，net8.0-windows + WPF/WinForms）已修复编译产物缺少 `.exe` 后缀的问题、`hashTree` 排除 `bin`/`obj` 避免重复编译，以及在 `profiles/claude.json` / `profiles/codex.json` 补全 `win32.process`（`Program.cs` 对 `ChatGPT` 兼容探测 `Codex` 进程名）。单测与真机实测 `.exe` 均可正常启动并返回 JSON；注意在非交互沙箱终端下因窗口站隔离 `MainWindowHandle` 为 0（会报 `not_running`），需在普通交互桌面终端下驱动桌面窗口。
+- 前端与构建实机修复（由真实运行浏览器检查发现）：`vite.config.ts` 在 `build` 时预先清理 `dist/server` 以消除旧 `zcode.plugin.js` 残留；`filePathOf` 与 `resolveFile` 支持 Windows 盘符路径及含中文/空格的 `file:///C:/...` 链接；`pickSpace` 切回模式时重绘新聊天欢迎页；`.kit-tool > summary` 长路径单行截断不遮挡下一行；`sidebar.ts` 按 `/` 和 `\` 分割项目名并归一化盘符大小写（`d:\` 与 `D:\` 合并）。
 
 ## 已知限制（诚实清单）
-1. Antigravity 回复文本的网页回显待配额重置（约 2026-11-23）后补验。
-2. Claude Desktop / Codex 桌面版未装机，其 UIA 发送与 IPC 通道未真机验证（代码就绪 + 单测）。
+1. Codex 桌面版发消息唤醒（`codex://threads/wake/`）与命名管道（`\\.\pipe\codex-ipc`）插话、Antigravity 网页发消息实机端到端发送，待交互桌面下唤醒桌面窗口实测。
+2. Claude Desktop 未装机，其 UIA 发送未真机验证（代码就绪 + 单测）。
 3. ZCode/WorkBuddy 仅模板与分析文档（一期范围）。
 4. `process.kill(pid,0)` 的 pid 复用误判未做进程名校验（后续改进项）。
-5. CDP（DevToolsActivePort）在本机为陈旧文件，实际未开——Electron CDP 增强通道
-   仍是可选项，未启用。
-6. UIA 驱动的 `warm check` 暂无 profile 漂移巡检（Windows 侧忽略 check 参数，行为
-   安全但无 staleControls 告警）；`send` 尚不导航会话（title/localId 未用，文本进入
-   应用当前显示的会话，结果带 `targeted:false` 标记）——都随 Claude/Codex 桌面版
-   真机接入补齐。
+5. CDP（DevToolsActivePort）在本机为陈旧文件，实际未开——Electron CDP 增强通道仍是可选项，未启用。
+6. UIA 驱动的 `warm check` 暂无 profile 漂移巡检（Windows 侧忽略 check 参数，行为安全但无 staleControls 告警）；`send` 尚不导航会话（title/localId 未用，文本进入应用当前显示的会话，结果带 `targeted:false` 标记）——都随 Claude/Codex 桌面版真机接入补齐。

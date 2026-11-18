@@ -27,6 +27,8 @@ test('sidebar puts sessions under their project, projectless ones under chats, c
   assert.deepEqual(at(at(tree.projects, 1).items, 0).children.map(item => item.id), ['kid']);
   assert.deepEqual(tree.chats.map(item => item.session.id), ['b', 'd']);
   assert.deepEqual(projectChoices(sessions, []).map(item => item.cwd), ['/w/app', '/w/lib']);
+  const winTree = organize([session('w1', { cwd: 'd:\\Work\\App' }), session('w2', { cwd: 'D:\\Work\\App\\' })]);
+  assert.deepEqual(winTree.projects.map(item => [item.id, item.name, item.items.length]), [['repo:d:\\Work\\App', 'App', 2]]);
 });
 
 test('projects start folded, remember being opened, and long lists fold behind "show more"', async () => {

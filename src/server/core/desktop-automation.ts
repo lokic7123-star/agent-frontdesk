@@ -82,7 +82,9 @@ const defaultCacheDir = (): string => process.platform === 'win32'
 function hashTree(dir: string): string {
   const hash = createHash('sha1');
   const walk = (at: string): void => {
-    for (const item of fs.readdirSync(at, { withFileTypes: true })) {
+    const items = fs.readdirSync(at, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const item of items) {
+      if (item.isDirectory() && (item.name === 'bin' || item.name === 'obj')) continue;
       const file = path.join(at, item.name);
       if (item.isDirectory()) walk(file);
       else { hash.update(item.name); hash.update(fs.readFileSync(file)); }
@@ -139,7 +141,7 @@ class DesktopAutomation {
   // Windows: dotnet publish of the uia-driver project, one exe per source version. The flow file
   // does not take part (the C# driver carries the whole flow); the profile is still passed at run.
   async buildWin32(): Promise<string | null> {
-    const base = path.join(this.cacheDir, `${this.engine}-desktop-${hashTree(UIA_PROJECT)}`);
+    const base = path.join(this.cacheDir, `${this.engine}-desktop-${hashTree(UIA_PROJECT)}.exe`);
     if (!fs.existsSync(base)) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
       await new Promise<void>((resolve, reject) => execFile('dotnet', ['publish', UIA_PROJECT, '-c', 'Release', '-r', 'win-x64', '--self-contained', 'false', '-o', `${base}.tmp`], { timeout: 300000 }, err => err ? reject(err) : resolve()));
@@ -182,7 +184,7 @@ class DesktopAutomation {
     if (this.state && Date.now() - this.checkedAt < 10000) return this.state;
     const file = await this.helper();
     let state: AutomationState;
-    if (!file) state = { available: false, reason: '桌面代发程序编译失败（需要 Xcode 命令行工具：xcode-select --install）' };
+    if (!file) state = { available: false, reason: this.platform === 'win32' ? '桌面代发程序编译失败（需要 .NET SDK 8）' : '桌面代发程序编译失败（需要 Xcode 命令行工具：xcode-select --install）' };
     else {
       const result = await this.runner(file, ['check'], { timeout: 5000, env: { AX_PROFILE: this.profile } });
       state = !result.ok ? { available: false, ...(result.error !== undefined ? { reason: result.error } : {}) } : !result.trusted ? { available: false, reason: NOT_TRUSTED, code: 'not_trusted' } : !result.running ? { available: false, reason: `${this.label}没有在运行`, code: 'not_running' } : { available: true };

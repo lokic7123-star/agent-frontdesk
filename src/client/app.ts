@@ -1033,7 +1033,7 @@ function pickSpace(id: string): void {
   sidePrefs.setSpace(state.engine, id);
   const spaces = spacesOf(engine());
   if (state.session && !isInSpace(state.session, spaces, id)) switchEngine(state.engine, { restore: false });
-  else { renderSessionList(); renderControls(); }
+  else { renderSessionList(); renderControls(); if (!state.session) renderConversation(); }
 }
 $('space-switch').addEventListener('click', event => {
   const button = closest(event.target, '[data-space-menu]');
@@ -1174,7 +1174,7 @@ const panel: { tabs: PanelTab[]; active: number; open: boolean; width: number } 
 try { const saved: unknown = JSON.parse(storageFor('localStorage')?.getItem('desktop-bridge:side-panel') || '{}'), width = get(saved, 'width'); if (typeof width === 'number' && width) panel.width = width; } catch {}
 const savePanel = () => { try { storageFor('localStorage')?.setItem('desktop-bridge:side-panel', JSON.stringify({ width: panel.width })); } catch {} };
 const isMarkdown = (path: string | undefined) => /\.(md|mdx|markdown)$/i.test(path || '');
-const fileName = (target: string) => target.replace(/:(\d+)(:\d+)?$/, '').split('/').filter(Boolean).at(-1) || target;
+const fileName = (target: string) => target.replace(/:(\d+)(:\d+)?$/, '').split(/[\\/]/).filter(Boolean).at(-1) || target;
 function setPanel(open: boolean): void {
   panel.open = open;
   $('side-panel').hidden = !open;

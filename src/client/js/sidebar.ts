@@ -21,7 +21,8 @@ import type { StoreLike } from './navigation.js';
 //                                            mode when the desktop shows it differently there (a
 //                                            Codex thread is under its project in "Codex" and in
 //                                            Recents in "ChatGPT"); rank orders that mode's list
-const basename = (value: unknown): string => String(value || '').split('/').filter(Boolean).at(-1) || '';
+const basename = (value: unknown): string => String(value || '').split(/[\\/]/).filter(Boolean).at(-1) || '';
+const repoKey = (cwd: string): string => cwd.replace(/^[a-z]:(?=[\\/])/i, d => d.toLowerCase()).replace(/[\\/]+$/, '');
 const ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escape = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, char => ENTITIES[char] ?? char);
 // Date.parse(undefined) is NaN, which reads as 0, as before.
@@ -78,7 +79,7 @@ function groupOf(session: SideSession): { id: string; name: string; cwd: string 
   const group = session.metadata?.group;
   if (group === null) return null;
   if (group?.id) return { id: String(group.id), name: String(group.name || basename(group.cwd) || group.id), cwd: group.cwd || '' };
-  return session.cwd ? { id: `repo:${session.cwd}`, name: basename(session.cwd) || session.cwd, cwd: session.cwd } : null;
+  return session.cwd ? { id: `repo:${repoKey(session.cwd)}`, name: basename(session.cwd) || session.cwd, cwd: session.cwd } : null;
 }
 
 // { projects: [{ id, name, cwd, items: [{ session, children }] }], chats: [{ session, children }],
@@ -117,7 +118,7 @@ export function organize<S extends SideSession>(sessions: S[] = [], listed: Arra
 // Where a new chat can start: every project that has a folder.
 export function projectChoices(sessions: SideSession[], listed: ListedProject[]): Array<{ id: string; name: string; cwd: string }> {
   const seen = new Set<string>();
-  return organize(sessions, listed).projects.filter(project => project.cwd && !seen.has(project.cwd) && seen.add(project.cwd)).map(({ id, name, cwd }) => ({ id, name, cwd }));
+  return organize(sessions, listed).projects.filter(project => project.cwd && !seen.has(repoKey(project.cwd)) && seen.add(repoKey(project.cwd))).map(({ id, name, cwd }) => ({ id, name, cwd }));
 }
 
 // Which projects are open and how wide the sidebar is, kept in the browser.

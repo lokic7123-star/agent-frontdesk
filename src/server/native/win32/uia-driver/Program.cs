@@ -164,19 +164,25 @@ namespace AgentFrontdesk.UiaDriver
         {
             var process = ProfileString(profile, "win32", "process");
             if (process.Length == 0) return null;
-            foreach (var p in Process.GetProcessesByName(process))
+            var candidates = process.Equals("ChatGPT", StringComparison.OrdinalIgnoreCase)
+                ? new[] { process, "Codex" }
+                : new[] { process };
+            foreach (var name in candidates)
             {
-                try
+                foreach (var p in Process.GetProcessesByName(name))
                 {
-                    if (p.MainWindowHandle != IntPtr.Zero)
+                    try
                     {
-                        var element = AutomationElement.FromHandle(p.MainWindowHandle);
-                        WakeIfMinimized(p.MainWindowHandle);
-                        return element;
+                        if (p.MainWindowHandle != IntPtr.Zero)
+                        {
+                            var element = AutomationElement.FromHandle(p.MainWindowHandle);
+                            WakeIfMinimized(p.MainWindowHandle);
+                            return element;
+                        }
                     }
+                    catch { /* a process that left between listing and reading */ }
+                    finally { p.Dispose(); }
                 }
-                catch { /* a process that left between listing and reading */ }
-                finally { p.Dispose(); }
             }
             return null;
         }

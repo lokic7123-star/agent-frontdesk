@@ -27,6 +27,13 @@ test('file previews stay inside the session folder and never show secrets or bin
 
   assert.deepEqual(previewFile(cwd, 'lib/a.js:2'), { path: 'lib/a.js', size: 8, text: 'one\ntwo\n', truncated: false });
   assert.equal(previewFile(cwd, path.join(cwd, 'lib', 'a.js')).path, 'lib/a.js');
+  if (process.platform === 'win32') {
+    const dirWithSpace = path.join(cwd, '目录 空格');
+    fs.mkdirSync(dirWithSpace, { recursive: true });
+    fs.writeFileSync(path.join(dirWithSpace, 'notes.md'), '# win');
+    const url = new URL(`file:///${path.join(dirWithSpace, 'notes.md').replace(/\\/g, '/')}`).href + '#L3';
+    assert.equal(previewFile(cwd, url.replace('#L3', ':3')).path, '目录 空格/notes.md');
+  }
   assert.match(must(previewFile(cwd, 'shot.png').image), /^data:image\/png;base64,/);
   const refused = (target: string, status: number) => assert.throws(() => previewFile(cwd, target), withStatus(status));
   refused(outside, 403);

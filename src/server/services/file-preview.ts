@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { FilePreview } from '../../shared/contract.js';
 export type { FilePreview };
@@ -24,7 +25,15 @@ const refuse = (status: number, message: string) => Object.assign(new Error(mess
 function resolveFile(cwd: string, requested: unknown, roots: string[] = []): { file: string; relative: string } {
   const bases = [cwd, ...roots].filter(Boolean);
   if (!bases.length) throw refuse(404, '这个会话没有记录工作目录，无法预览文件');
-  const asked = String(requested || '').trim().replace(/^file:\/\//, '').replace(/:(\d+)(:\d+)?$/, '');
+  const raw = String(requested || '').trim().replace(/:(\d+)(:\d+)?$/, '');
+  let asked = raw;
+  if (/^file:\/\//i.test(raw)) {
+    try { asked = fileURLToPath(raw); }
+    catch {
+      const stripped = raw.replace(/^file:\/\/\/?(?=[a-zA-Z]:[\\/])|^file:\/\//i, '');
+      try { asked = decodeURIComponent(stripped); } catch { asked = stripped; }
+    }
+  }
   // `~/…` is the home folder, as the agent's shell reads it (HOME first: Git Bash and the like
   // set it even where os.homedir() would look elsewhere, e.g. USERPROFILE on Windows).
   const named = /^~(\/|$)/.test(asked) ? path.join(process.env.HOME || os.homedir(), asked.slice(1)) : asked;

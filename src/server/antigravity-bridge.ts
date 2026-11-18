@@ -626,6 +626,11 @@ class AntigravityBridge extends EventEmitter {
   // no accessibility flow for its chat, so the chat itself is not brought up.
   fileRoots(conversationId: string): string[] { return /^[\w-]{1,80}$/.test(String(conversationId)) ? [path.join(this.brainDir, conversationId)] : []; }
   openFile(_conversationId: string, { absolute }: Pick<FileTarget, 'absolute'>, run: OpenRunner = execFile): Promise<{ ok: true; pressed: true }> {
+    if (process.platform === 'win32' && run === execFile) {
+      const bin = path.join(this.env['LOCALAPPDATA'] || path.join(this.home, 'AppData', 'Local'), 'Programs', 'antigravity', 'Antigravity.exe');
+      return new Promise((resolve, reject) => run(bin, [absolute], { timeout: 15000 }, err =>
+        err ? reject(Object.assign(new Error('没能在 Antigravity 里打开这个文件'), { status: 409, cause: err })) : resolve({ ok: true, pressed: true })));
+    }
     return new Promise((resolve, reject) => run('/usr/bin/open', ['-b', 'com.google.antigravity', absolute], { timeout: 15000 }, err =>
       err ? reject(Object.assign(new Error('没能在 Antigravity 里打开这个文件'), { status: 409, cause: err })) : resolve({ ok: true, pressed: true })));
   }

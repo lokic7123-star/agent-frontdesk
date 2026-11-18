@@ -17,7 +17,14 @@ const IDENTITY = { id: 'codex', label: 'Codex', description: 'Codex desktop', pr
 /** The agent as the console lists it before it is set up: found when the desktop app is on this machine (~/.codex alone is the command-line tool's, which the console does not drive). */
 export const about: PluginAbout = { ...IDENTITY,
   // The app's own icon, beside its app.asar in the installed app (the host serves it; nothing is copied here).
-  appIcon: config => path.join(path.dirname(config.chatgptAppAsar || DEFAULT_ASAR), 'electron.icns'),
+  appIcon: config => {
+    const asar = config.chatgptAppAsar || DEFAULT_ASAR;
+    if (process.platform === 'win32') {
+      const msixIcon = path.resolve(path.dirname(asar), '..', '..', 'assets', 'icon.png');
+      if (fs.existsSync(msixIcon)) return msixIcon;
+    }
+    return path.join(path.dirname(asar), 'electron.icns');
+  },
   detect: config => firstExisting(appPlaces(config.chatgptAppAsar || DEFAULT_ASAR)) };
 export const setup: PluginSetup = ({ config, registerEngine, registerAsset }) => {
   const archive = config.chatgptAppAsar || DEFAULT_ASAR;

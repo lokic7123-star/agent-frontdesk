@@ -139,7 +139,8 @@ class CodexBridge extends EventEmitter {
     const bin = this.codexBin;
     if (!bin) throw new Error('未发现 Codex，请设置 CODEX_BIN');
     this.starting = (async () => {
-      const proc = spawn(bin, ['app-server', '--stdio']);
+      const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(bin);
+      const proc = spawn(bin, ['app-server', '--stdio'], ...(viaShell ? [{ shell: true }] : []));
       this.proc = proc;
       proc.on('error', err => this.failPending(err));
       proc.on('exit', code => {
@@ -627,6 +628,9 @@ class CodexBridge extends EventEmitter {
   // Asks the desktop to run what the thread has queued. `open -g` keeps it in the background;
   // a desktop that is not running starts just to do this.
   wake(threadId: string): Promise<void> {
+    if (process.platform === 'win32') {
+      return new Promise((resolve, reject) => execFile('cmd.exe', ['/d', '/s', '/c', `start "" "codex://threads/wake/${encodeURIComponent(threadId)}"`], { timeout: 15000 }, err => err ? reject(Object.assign(new Error('没能唤起 Codex 桌面版来处理这条消息'), { cause: err })) : resolve()));
+    }
     return new Promise((resolve, reject) => execFile('/usr/bin/open', ['-g', `codex://threads/wake/${threadId}`], { timeout: 15000 }, err => err ? reject(Object.assign(new Error('没能唤起 Codex 桌面版来处理这条消息'), { cause: err })) : resolve()));
   }
   // Follows the desktop's record of the thread: the first turn not in `known` that carries this

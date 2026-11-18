@@ -529,8 +529,10 @@ test('a link to a folder or an extensionless file is a file link; bare inline co
   assert.equal(filePathOf('/home/me/q6-demo/'), '/home/me/q6-demo/');
   assert.equal(filePathOf('4130.log'), '4130.log');
   assert.equal(filePathOf('~/.claude/', { link: true }), '~/.claude/');
+  assert.equal(filePathOf('file:///d:/%E6%80%BB%E6%95%B0%E6%8D%AE%E5%BA%93/Agent%20Frontdesk/HANDOFF.md:10', { link: true }), 'd:/总数据库/Agent Frontdesk/HANDOFF.md:10');
+  assert.equal(filePathOf('C:\\Users\\LoKi\\app.ts:12'), 'C:/Users/LoKi/app.ts:12');
   // Still code: a command, a branch, an API route, a method call, a version, a fraction.
-  for (const code of ['npm test', 'origin/main', 'claude/link-parsing', '/api/activity', 'thread/start', 'console.warn', 'v1.2', '1/2.5', 'github.com/me/repo', '~', '~/', '/']) assert.equal(filePathOf(code), '', code);
+  for (const code of ['npm test', 'origin/main', 'claude/link-parsing', '/api/activity', 'thread/start', 'console.warn', 'v1.2', '1/2.5', 'github.com/me/repo', 'javascript:alert(1)', '~', '~/', '/']) assert.equal(filePathOf(code), '', code);
 });
 
 test('a Codex writing block is read up to its closing ::: (a fence inside it does not close it)', async () => {

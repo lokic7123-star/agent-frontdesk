@@ -456,4 +456,10 @@ test('the Windows helper builds through dotnet publish and runs the same protoco
   const refused = await nowhere.check();
   assert.equal(refused.available, false);
   assert.match(refused.reason || '', /macOS 和 Windows|macOS and Windows/);
+  if (process.platform === 'win32') {
+    const realDesktop = new DesktopAutomation({ engine: 'claude', platform: 'win32', cacheDir: temp });
+    const realState = await realDesktop.check();
+    assert.ok(realDesktop.binary?.endsWith('.exe'), 'Windows UIA helper must end with .exe');
+    assert.notEqual(realState.reason, '桌面代发程序没有正常返回');
+  }
 });

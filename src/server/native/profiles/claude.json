@@ -1,6 +1,9 @@
 {
   "name": "Claude 桌面版",
   "bundleId": "com.anthropic.claudefordesktop",
+  "win32": {
+    "process": "Claude"
+  },
   "offscreenMenu": "key",
   "titleSuffix": " - Claude Code",
   "sessionLink": "claude://claude.ai/epitaxy/{localId}",

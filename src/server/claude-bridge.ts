@@ -448,16 +448,17 @@ interface AuthState { at: number; loggedIn: boolean; error: string }
 
 // ---------- the bridge ----------
 class ClaudeBridge {
-  home: string; appDir: string; indexDir: string; projectsDir: string; tmpDir: string; bin: string | null;
+  home: string; claudeDir: string; appDir: string; indexDir: string; projectsDir: string; tmpDir: string; bin: string | null;
   cache: Map<string, ParsedTranscript>; hot: string[] = []; metaCache: Map<string, { mtimeMs: number; meta: SessionMeta }>; repos: Map<string, string>;
   runs: Map<string, DesktopRun>; starts: Map<string, EngineEvents>;
   auth: AuthState | null; modelCache: { at: number; models: Model[] } | null;
   desktop: ClaudeDesktop;
-  constructor({ home = os.homedir(), env = process.env, bin, claudeHome, desktopHome, desktop, tmpDir = '/tmp' }: ClaudeBridgeOptions = {}) {
+  constructor({ home = os.homedir(), env = process.env, bin, claudeHome, desktopHome, desktop, tmpDir = os.tmpdir() }: ClaudeBridgeOptions = {}) {
     this.home = home; this.tmpDir = tmpDir;
+    this.claudeDir = claudeHome || path.join(home, '.claude');
     this.appDir = desktopHome || path.join(home, 'Library/Application Support/Claude');
     this.indexDir = path.join(this.appDir, 'claude-code-sessions');
-    this.projectsDir = path.join(claudeHome || path.join(home, '.claude'), 'projects');
+    this.projectsDir = path.join(this.claudeDir, 'projects');
     this.bin = bin === undefined ? findClaudeBin(env, home) : bin;
     this.cache = new Map(); this.metaCache = new Map(); this.repos = new Map();
     this.runs = new Map(); this.starts = new Map();
@@ -685,7 +686,8 @@ class ClaudeBridge {
   // ---------- Claude Code CLI: reads the model list and usage only ----------
   spawnCli(args: string[], cwd?: string): ChildProcessByStdio<Writable, Readable, Readable> {
     if (!this.bin) throw new Error(NO_CLI);
-    return spawn(this.bin, ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', ...args], { cwd: cwd && fs.existsSync(cwd) ? cwd : this.home, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'sdk-cli' } });
+    const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(this.bin);
+    return spawn(this.bin, ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', ...args], { cwd: cwd && fs.existsSync(cwd) ? cwd : this.home, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'sdk-cli' }, ...(viaShell ? { shell: true } : {}) });
   }
   // Control requests that send no prompt and keep no session (list_models, get_usage).
   async control(subtypes: string[], timeoutMs = 15000): Promise<Record<string, unknown>> {
@@ -782,10 +784,16 @@ class ClaudeBridge {
   // CLI keeps the same JSON in ~/.claude/.credentials.json). This is Claude's own credential
   // (philosophy 2a): read fresh on the server for each dictation, never stored or sent to the
   // page. An expiring token is refreshed by letting the CLI make a call.
+  private readWindowsCredentials(): unknown {
+    for (const file of [path.join(this.claudeDir, '.credentials.json'), path.join(this.home, '.credentials.json')]) {
+      try { if (fs.existsSync(file)) return get(parseJson(fs.readFileSync(file, 'utf8')), 'claudeAiOauth') || null; } catch {}
+    }
+    return null;
+  }
   async oauthToken(): Promise<string | null> {
     const read = () => new Promise<unknown>(resolve => {
       if (process.platform === 'win32') {
-        try { resolve(get(parseJson(fs.readFileSync(path.join(this.home, '.credentials.json'), 'utf8')), 'claudeAiOauth') || null); } catch { resolve(null); }
+        resolve(this.readWindowsCredentials());
         return;
       }
       execFile('security', ['find-generic-password', '-s', 'Claude Code-credentials', '-w'], { timeout: 15000 }, (err, stdout) => {
@@ -805,9 +813,7 @@ class ClaudeBridge {
   dictationReady(): Promise<DictationReady> {
     return new Promise(resolve => {
       if (process.platform === 'win32') {
-        let ready = false;
-        try { ready = !!get(parseJson(fs.readFileSync(path.join(this.home, '.credentials.json'), 'utf8')), 'claudeAiOauth'); } catch {}
-        resolve(ready ? { ready: true } : { ready: false, reason: noSignIn(this.bin) });
+        resolve(this.readWindowsCredentials() ? { ready: true } : { ready: false, reason: noSignIn(this.bin) });
         return;
       }
       execFile('security', ['find-generic-password', '-s', 'Claude Code-credentials'], { timeout: 5000 }, err =>

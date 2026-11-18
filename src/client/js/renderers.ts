@@ -121,14 +121,22 @@ export function emphasizeCjk(text: unknown): string {
 // - it is an absolute path on this machine (`/Users/…`, `/private/tmp/…`, `~/…`), of any shape.
 // So `origin/main`, `/api/activity` or `thread/start` stay code, and a bare folder (`docs/`) too.
 const FILE_EXT = /\.(c|cc|cpp|cs|css|csv|cjs|go|h|hpp|html?|ini|java|jsx?|json|kt|lock|log|m|md|mdx|mjs|php|py|rb|rs|scss|sh|sql|svelte|svg|swift|toml|tsx?|txt|vue|xml|ya?ml|zsh|png|jpe?g|gif|webp)$/i;
-const PATH_SHAPE = /^(~\/|\/|\.{1,2}\/)?[\w@.+-]+(\/[\w@.+-]+)*\/?$/;
-const LOCAL_ROOT = /^(~\/|\/(Users|Volumes|Applications|Library|private|tmp|var|opt|etc|home)\/)./;
+const PATH_SHAPE = /^(~\/|\/|[a-zA-Z]:\/|\.{1,2}\/)?[\w@.+-]+(\/[\w@.+-]+)*\/?$/;
+const LOCAL_ROOT = /^(~\/|[a-zA-Z]:\/|\/(Users|Volumes|Applications|Library|private|tmp|var|opt|etc|home)\/)./;
 const PATH_FILE = /\/(\.[\w-]+|[\w@+-][\w@.+-]*\.(?=[a-z0-9]*[a-z])[a-z0-9]{1,8})$/i;
+const decodeSafe = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 export function filePathOf(value: unknown, { link = false } = {}): string {
-  const text = String(value || '').trim().replace(/^file:\/\//, '');
-  if (!text || text.length > 400 || /\s|:\/\/|^[a-z]+:/i.test(text.replace(/:(\d+)(:\d+)?$/, ''))) return '';
+  const raw = String(value || '').trim();
+  const stripped = /^file:\/\//i.test(raw)
+    ? decodeSafe(raw.replace(/^file:\/\/\/?(?=[a-zA-Z]:[\\/])|^file:\/\//i, ''))
+    : raw;
+  const text = /^[a-zA-Z]:[\\/]/.test(stripped) || (stripped.includes('\\') && !stripped.includes(' '))
+    ? stripped.replace(/\\/g, '/')
+    : stripped;
   const bare = text.replace(/:(\d+)(:\d+)?$/, '');
-  if (!PATH_SHAPE.test(bare) || /^\.+\/?$/.test(bare)) return '';
+  if (!text || text.length > 400 || /:\/\//.test(bare) || /^[a-z]{2,}:/i.test(bare)) return '';
+  if (link && /^[a-zA-Z]:\/[^\r\n\0]+$/.test(bare)) return text;
+  if (/\s/.test(bare) || !PATH_SHAPE.test(bare) || /^\.+\/?$/.test(bare)) return '';
   if (link) return text;
   if (bare.endsWith('/')) return LOCAL_ROOT.test(bare) ? text : '';
   return FILE_EXT.test(bare) || LOCAL_ROOT.test(bare) || PATH_FILE.test(bare) ? text : '';
@@ -262,8 +270,8 @@ function writingCard(box: HTMLElement): void {
   }
   head.after(list);
 }
-// Links to a local file may be written file:///…, which the sanitizer would otherwise drop.
-const URI_SAFE = /^(?:(?:https?|mailto|file):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
+// Links to a local file may be written file:///… or as a Windows drive path, which the sanitizer would otherwise drop.
+const URI_SAFE = /^(?:(?:https?|mailto|file):|[a-z]:[\\/]|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 const decoded = (href: string) => { try { return decodeURI(href); } catch { return href; } };
 // The two libraries that draw code in colour (highlight.js) and math (KaTeX) are a large part of
 // what the page would otherwise load at once, and math is rare: each is a chunk of its own,

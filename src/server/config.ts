@@ -33,13 +33,21 @@ function catalogsOf(value: unknown): Record<string, Model[]> {
   }
   return out;
 }
+function winCodexApp(localAppData: string): string {
+  try {
+    return path.dirname(fs.readlinkSync(path.join(localAppData, 'Microsoft', 'WindowsApps', 'chatgpt-desktop.exe')));
+  } catch { return ''; }
+}
+const firstHere = (candidates: string[]): string => candidates.find(file => fs.existsSync(file)) || candidates[0] || '';
 function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
   const home = os.homedir();
   const agyHome = env.ANTIGRAVITY_HOME || path.join(home, '.gemini/antigravity');
   // Where Windows keeps per-user app installs and roaming app data; nothing on macOS/Linux.
   const win = process.platform === 'win32';
-  const localPrograms = path.join(env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'Programs');
+  const localAppData = env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
+  const localPrograms = path.join(localAppData, 'Programs');
   const appData = env.APPDATA || path.join(home, 'AppData', 'Roaming');
+  const msixCodex = win ? winCodexApp(localAppData) : '';
   let catalogs: Record<string, Model[]> = {};
   if (env.BRIDGE_MODEL_CATALOG) catalogs = catalogsOf(parseJson(fs.readFileSync(env.BRIDGE_MODEL_CATALOG, 'utf8')));
   return {
@@ -52,14 +60,14 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     pluginDir: env.BRIDGE_PLUGIN_DIR || path.join(HERE, 'plugins'),
     defaultCwd: env.BRIDGE_DEFAULT_CWD || home,
     codexBin: executable('CODEX_BIN', win
-      ? ['codex', 'codex.cmd', 'codex.exe', path.join(localPrograms, 'ChatGPT', 'resources', 'codex-cli', 'bin', 'codex.exe')]
+      ? [...(msixCodex ? [path.join(msixCodex, 'resources', 'codex.exe')] : []), 'codex', 'codex.cmd', 'codex.exe', path.join(localPrograms, 'ChatGPT', 'resources', 'codex-cli', 'bin', 'codex.exe')]
       : ['codex', '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex']),
     claudeBin: executable('CLAUDE_BIN', win
       ? ['claude', 'claude.cmd', 'claude.exe', path.join(home, '.local', 'bin', 'claude.exe'), ...findClaude(path.join(appData, 'Claude', 'claude-code'))]
       : ['claude', ...findClaude(path.join(home, 'Library/Application Support/Claude/claude-code'))]),
     codexHome: env.CODEX_HOME || path.join(home, '.codex'),
     claudeHome: env.CLAUDE_HOME || path.join(home, '.claude'),
-    chatgptAppAsar: env.CHATGPT_APP_ASAR || (win ? path.join(localPrograms, 'ChatGPT', 'resources', 'app.asar') : '/Applications/ChatGPT.app/Contents/Resources/app.asar'),
+    chatgptAppAsar: env.CHATGPT_APP_ASAR || (win ? firstHere([path.join(localPrograms, 'ChatGPT', 'resources', 'app.asar'), ...(msixCodex ? [path.join(msixCodex, 'resources', 'app.asar')] : [])]) : '/Applications/ChatGPT.app/Contents/Resources/app.asar'),
     claudeDesktopHome: env.CLAUDE_DESKTOP_HOME || (win ? path.join(appData, 'Claude') : path.join(home, 'Library/Application Support/Claude')),
     claudeAppAsar: env.CLAUDE_APP_ASAR || (win ? path.join(localPrograms, 'Claude', 'resources', 'app.asar') : '/Applications/Claude.app/Contents/Resources/app.asar'),
     // Speech-to-text used by every engine's mic button; falls back to the engine's own.
@@ -71,7 +79,7 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
       ? [path.join(agyHome, 'bin', 'agentapi.bat'), path.join(agyHome, 'bin', 'agentapi.exe'), 'agentapi', 'agentapi.exe']
       : [path.join(agyHome, 'bin/agentapi'), 'agentapi']),
     // The ZCode template's own places; the phase-2 bridge reads them too.
-    zcodeAppAsar: env.ZCODE_APP_ASAR || (win ? path.join(localPrograms, 'Zcode', 'resources', 'app.asar') : undefined),
+    zcodeAppAsar: env.ZCODE_APP_ASAR || (win ? firstHere([path.join(localPrograms, 'Zcode', 'resources', 'app.asar'), 'D:\\Zcode\\resources\\app.asar']) : undefined),
     zcodeHome: env.ZCODE_HOME || path.join(home, '.zcode'),
     catalogs,
   };
