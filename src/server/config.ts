@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { ROOT, HERE } from './paths.js';
+import { ROOT, CODE } from './paths.js';
 import type { BridgeConfig, Model } from '../shared/contract.js';
 import { bag, list, get, str, parseJson } from '../shared/guards.js';
 
@@ -57,7 +57,7 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     httpsPort: env.HTTPS_PORT != null ? Number(env.HTTPS_PORT) : ['127.0.0.1', 'localhost', '::1'].includes(env.HOST || '127.0.0.1') ? 0 : Number(env.PORT || 4100) + 1,
     certDir: env.BRIDGE_CERT_DIR || path.join(ROOT, '.certs'),
     uploadsDir: env.BRIDGE_UPLOADS_DIR || path.join(ROOT, 'uploads'),
-    pluginDir: env.BRIDGE_PLUGIN_DIR || path.join(HERE, 'plugins'),
+    pluginDir: env.BRIDGE_PLUGIN_DIR || path.join(CODE, 'plugins'),
     defaultCwd: env.BRIDGE_DEFAULT_CWD || home,
     codexBin: executable('CODEX_BIN', win
       ? [...(msixCodex ? [path.join(msixCodex, 'resources', 'codex.exe')] : []), 'codex.exe', 'codex.cmd', 'codex.bat', 'codex', path.join(localPrograms, 'ChatGPT', 'resources', 'codex-cli', 'bin', 'codex.exe')]

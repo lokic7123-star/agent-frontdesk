@@ -13,8 +13,9 @@ uploads/
 docs/skins/*/source/*.png
 docs/skins/*/source/*.jpg
 
-# Build output (npm run build)
+# Build output (npm run build) and the packaged exe (npm run build:exe)
 dist/
+Agent Frontdesk.exe
 
 # The Windows UIA driver's local build output (dotnet build/publish inside the project folder)
 src/server/native/win32/**/bin/

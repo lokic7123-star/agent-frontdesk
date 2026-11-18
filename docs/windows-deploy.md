@@ -23,6 +23,18 @@ npm start
 首次对 Claude/Codex 桌面发消息时，服务会用 `dotnet publish` 编译 UIA 驱动
 （几秒），产物按源码哈希缓存在 `%LOCALAPPDATA%\agent-frontdesk\`，之后直接复用。
 
+### 打包成单个 exe（可选）
+
+```sh
+npm run build:exe
+```
+
+产出项目根目录的 `Agent Frontdesk.exe`（Node SEA：服务端与 npm 依赖经 esbuild 打进
+一个 CJS bundle 后注入 node.exe 副本，双击即可启动，无需 node_modules）。exe 仍从
+磁盘读取 `dist/public` 与 `src/server/native`，因此须保留在项目根目录。
+仓库根的 `start-frontdesk.cmd`（或其桌面快捷方式）优先启动 exe，未打包时回落到
+`node dist/server/server.js`；代码更新后需重跑 `npm run build:exe` 才会进入 exe。
+
 ## 环境变量（全部可选）
 
 | 变量 | 用途 | Windows 默认（本仓库新增行为） |

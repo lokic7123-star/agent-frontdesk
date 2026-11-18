@@ -20,6 +20,10 @@ function spacesOf(input: unknown): Space[] {
   return spaces.map((item, index) => ({ ...item, default: index === (home < 0 ? 0 : home) }));
 }
 const isSetup = (value: unknown): value is PluginSetup => typeof value === 'function';
+// A drawn stand-in yields to the installed app's real icon: while the app is on this machine the
+// avatar is that app's own icon (iconUrl below), and the drawing returns once the app is gone.
+const withAppIcon = (character: Character | null | undefined, iconUrl?: string): Character | null =>
+  character?.kind === 'image' && character.standIn && iconUrl ? { ...character, url: iconUrl, standIn: false } : character || null;
 const REQUIRED = ['status', 'models', 'list', 'read', 'create', 'send'] as const;
 const ID = /^[a-z][a-z0-9-]*$/;
 const accentOf = (accent: unknown): string | null => (typeof accent === 'string' && /^#[0-9a-f]{6}$/i.test(accent) ? accent : null);
@@ -175,7 +179,7 @@ class PluginHost {
     const slots = [...this.plugins.values()].sort((a, b) => (a.about.priority || 100) - (b.about.priority || 100));
     return Promise.all(slots.map(async (slot): Promise<AgentEntry> => {
       const { id, label, description, accent, character } = slot.about, iconUrl = slot.about.iconUrl || this.iconUrl(id);
-      return { id, label, ...(description ? { description } : {}), ...(iconUrl ? { iconUrl } : {}), accent: accentOf(accent), character: character || null, enabled: slot.enabled, ...await this.presence(slot), ...(slot.error ? { error: slot.error } : {}) };
+      return { id, label, ...(description ? { description } : {}), ...(iconUrl ? { iconUrl } : {}), accent: accentOf(accent), character: withAppIcon(character, iconUrl), enabled: slot.enabled, ...await this.presence(slot), ...(slot.error ? { error: slot.error } : {}) };
     }));
   }
   get(id: string): Engine {
@@ -184,8 +188,9 @@ class PluginHost {
     return engine;
   }
   manifests(): EngineManifest[] {
-    return [...this.engines.values()].sort((a, b) => (a.priority || 100) - (b.priority || 100)).map(({ id, label, description, prefix, iconUrl, accent, character, skin, look, permissionModes, spaces, capabilities, uiModules = [] }) => ({ id, label, description, prefix: prefix || label.slice(0, 2), iconUrl: iconUrl || this.iconUrl(id), spaces: spacesOf(spaces),
-      permissionModes: list(permissionModes).filter(mode => /^[A-Za-z]{1,32}$/.test(str(get(mode, 'id')) || '') && get(mode, 'label')).map((mode): PermissionMode => ({ id: String(get(mode, 'id')), label: String(get(mode, 'label')), description: String(get(mode, 'description') || '') })), accent: accentOf(accent), character: typeof character === 'function' ? character() : character || null, skin: skin || null, look: look && typeof look === 'object' ? look : {}, capabilities, uiModules }));
+    return [...this.engines.values()].sort((a, b) => (a.priority || 100) - (b.priority || 100)).map(({ id, label, description, prefix, iconUrl, accent, character, skin, look, permissionModes, spaces, capabilities, uiModules = [] }) => { const icon = iconUrl || this.iconUrl(id);
+      return { id, label, description, prefix: prefix || label.slice(0, 2), iconUrl: icon, spaces: spacesOf(spaces),
+      permissionModes: list(permissionModes).filter(mode => /^[A-Za-z]{1,32}$/.test(str(get(mode, 'id')) || '') && get(mode, 'label')).map((mode): PermissionMode => ({ id: String(get(mode, 'id')), label: String(get(mode, 'label')), description: String(get(mode, 'description') || '') })), accent: accentOf(accent), character: withAppIcon(typeof character === 'function' ? character() : character, icon), skin: skin || null, look: look && typeof look === 'object' ? look : {}, capabilities, uiModules }; });
   }
   async dispose(): Promise<void> { for (const id of [...this.plugins.keys()].reverse()) await this.disable(id); }
 }

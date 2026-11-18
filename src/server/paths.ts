@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isSea } from 'node:sea';
 import { get, parseJson } from '../shared/guards.js';
 
 function findRoot(start: string): string {
@@ -14,8 +15,11 @@ function findRoot(start: string): string {
 }
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = findRoot(HERE);
+// Inside the single executable (scripts/build-exe.mjs) the running "file" is the exe itself, so
+// HERE is the project root; the code the plugin scan discovers lives in the compiled tree.
+const CODE = isSea() ? path.join(ROOT, 'dist/server') : HERE;
 // The Swift helpers and their profiles stay in the sources; they are compiled on demand.
 const NATIVE = path.join(ROOT, 'src/server/native');
 // The built page (vite build). In development Vite serves the page itself.
 const PUBLIC = path.join(ROOT, 'dist/public');
-export { ROOT, NATIVE, PUBLIC, HERE };
+export { ROOT, NATIVE, PUBLIC, HERE, CODE };
