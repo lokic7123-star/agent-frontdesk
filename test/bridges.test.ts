@@ -432,6 +432,22 @@ test('Claude and Antigravity usage map native quota data to remaining-percent wi
   assert.deepEqual(grouped.windows?.map(item => item.remainingPercent), [82, 37, 100, 100, 25]);
   assert.deepEqual(grouped.windows?.map(item => item.windowMinutes), [10080, 300, 10080, 300, 10080]);
   assert.equal(grouped.windows?.at(-1)?.resetsAt, Date.parse('2026-11-25T15:41:09Z') / 1000);
+  // A missing bucketId falls back to a unique id (a bare String() would read "undefined"); a
+  // non-numeric remainingFraction marks the bucket malformed and it is skipped whole, so a
+  // fully malformed answer falls back to the per-model numbers instead of drawing bogus rows.
+  const malformed = groupsOf({ response: { groups: [
+    { displayName: 'Gemini Models', buckets: [
+      { window: 'weekly', remainingFraction: 'oops', resetTime: '2026-11-25T15:57:28Z' },
+      { bucketId: 'gemini-5h', window: '5h', remainingFraction: 0.37, resetTime: '2026-11-18T20:57:28Z' },
+    ] },
+    { displayName: 'Gemini 4 Argon', buckets: [
+      { window: 'weekly', remainingFraction: 0.25, resetTime: '2026-11-25T15:41:09Z' },
+      { window: 'weekly', remainingFraction: 0.5, resetTime: '2026-11-25T15:41:09Z' },
+    ] },
+  ] } });
+  assert.deepEqual(malformed.windows?.map(item => item.id), ['gemini-5h', 'Gemini 4 Argon·每周限额·2', 'Gemini 4 Argon·每周限额·3']);
+  assert.deepEqual(malformed.windows?.map(item => item.remainingPercent), [37, 25, 50]);
+  assert.equal(groupsOf({ response: { groups: [{ displayName: 'G', buckets: [{ window: 'weekly', remainingFraction: 'oops' }] }] } }).available, false);
   assert.equal(groupsOf({ response: { groups: [] } }).available, false);
 });
 

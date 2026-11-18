@@ -34,8 +34,8 @@ execFileSync(NODE, ['--experimental-sea-config', CONFIG], { stdio: 'inherit', cw
 
 console.log('[3/4] copying node.exe and injecting the blob (postject)…');
 fs.copyFileSync(NODE, EXE);
-// (The exe's file icon stays node's own; the desktop shortcut carries the app icon via its
-// IconLocation. postject's alpha CLI cannot set PE icons.)
+// (The exe's file icon stays node's own; the desktop shortcut's icon is owned by
+// scripts/export-icons.mjs, which also refreshes the shell's icon cache.)
 const postjectArgs = [EXE, 'NODE_SEA_BLOB', BLOB, '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'];
 execFileSync(NODE, [path.join(ROOT, 'node_modules', 'postject', 'dist', 'cli.js'), ...postjectArgs], { stdio: 'inherit', cwd: ROOT });
 

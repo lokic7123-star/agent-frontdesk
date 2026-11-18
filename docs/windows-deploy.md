@@ -33,12 +33,41 @@ npm run build:exe
 一个 CJS bundle 后注入 node.exe 副本，双击即可启动，无需 node_modules）。exe 仍从
 磁盘读取 `dist/public` 与 `src/server/native`，因此须保留在项目根目录。
 
-日常启动不用命令行：仓库根的 `start-frontdesk.vbs` 在后台静默启动 exe
-（无任何窗口；未打包时回落到 `node dist/server/server.js`，同样隐藏），
-服务就绪后自动打开浏览器页面；已在运行时只开页面。`stop-frontdesk.vbs`
-结束后台服务（taskkill 按 exe 名精确匹配）。桌面快捷方式各自指向这两个
-脚本，图标用 `src/client/public/assets/logo/logo.ico`。
-代码更新后需重跑 `npm run build:exe` 才会进入 exe。
+### 原生窗口壳（可选，推荐）
+
+```sh
+cd shell && cargo build --release && cd ..
+copy shell\target\release\frontdesk-shell.exe .
+```
+
+产出项目根的 `frontdesk-shell.exe`（Rust + tao/wry，约 8MB，需 WebView2 运行时——
+Windows 11 自带）：无边框原生窗口，标题栏由页面自绘，无任何浏览器痕迹。
+它同样从磁盘读取项目文件，须保留在项目根目录；地址可用环境变量 `FRONTDESK_URL`
+覆盖（默认 `http://127.0.0.1:4100`，解析失败回落默认值）。
+代码更新后需重跑 `npm run build:exe` 与壳的 `cargo build --release` 才会进入 exe。
+
+### 图标
+
+```sh
+npm run export:icons
+```
+
+从 SVG 正本（`src/client/public/assets/logo/logo.svg`）重出全套：页面 logo-*.png、
+favicon.svg、多尺寸 logo.ico，以及桌面快捷方式使用的副本
+`%LOCALAPPDATA%\agent-frontdesk\frontdesk.ico`。脚本会自动把指向旧副本的桌面
+快捷方式重指过来并刷新系统图标缓存；指向仓库 `logo.ico` 的快捷方式不受影响。
+Windows 对同路径内容变更不刷新图标缓存，因此该脚本每次运行都会重存快捷方式
+并发刷新通知——重跑是安全的，不会弄断桌面图标。
+
+### 启动与停止
+
+日常启动不用命令行：仓库根的 `start-frontdesk.vbs` 在后台静默启动服务
+（无任何窗口），服务就绪后打开窗口——优先 `frontdesk-shell.exe`（原生窗口），
+未打包时回落 Edge 应用窗口，再回落默认浏览器；已在运行时只开窗口。
+`stop-frontdesk.vbs` 结束后台服务：shell 与打包 exe 按 exe 名精确匹配；回退
+启动的 node 按**命令行**匹配（含项目路径与 `dist\server\server.js` 的才结束，
+其他 node 进程不受影响）。关闭壳窗口不会停止后台服务。
+`start-frontdesk.vbs` 的探活与打开端口固定为 4100（环境变量只影响服务与壳）。
 
 ## 环境变量（全部可选）
 

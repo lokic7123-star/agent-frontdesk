@@ -40,7 +40,7 @@ export function character(provider: Provider = {}, { working = false } = {}): st
 }
 
 // An engine may name its quota windows; the common names are known in both languages.
-export const windowName = (window: UsageWindow): string => window.label ? t(window.label) : ((window.windowMinutes ?? 0) >= 1440 ? t('每周') : window.windowMinutes ? `${Math.round(window.windowMinutes / 60)} ${t('小时')}` : t('额度'));
+export const windowName = (window: UsageWindow): string => window.label ? say(window.label) : ((window.windowMinutes ?? 0) >= 1440 ? t('每周') : window.windowMinutes ? `${Math.round(window.windowMinutes / 60)} ${t('小时')}` : t('额度'));
 // A missing percent (null) counts as 0, as Math.min(100, null) always did.
 const remaining = (window: UsageWindow): number => Math.round(Math.max(0, Math.min(100, window.remainingPercent ?? 0)));
 // Remaining quota as one segmented bar under the engine's face, a segment per window the engine

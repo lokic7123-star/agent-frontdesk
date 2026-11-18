@@ -165,10 +165,18 @@ function groupsOf(summary: unknown): Usage {
   for (const group of list(get(summary, 'response', 'groups'))) {
     const groupName = String(get(group, 'displayName') || ''), name = GROUP_NAMES[groupName] || groupName;
     for (const bucket of list(get(group, 'buckets'))) {
-      const known = WINDOW_NAMES[String(get(bucket, 'window'))] || { name: String(get(bucket, 'displayName') || '额度'), minutes: null as number | null };
-      const remaining = Math.max(0, Math.min(100, Number(get(bucket, 'remainingFraction') ?? 0) * 100));
-      const reset = Date.parse(String(get(bucket, 'resetTime') || ''));
-      windows.push({ id: String(get(bucket, 'bucketId')) || `${groupName} ${known.name}`, label: `${name} · ${known.name}`, remainingPercent: remaining, usedPercent: 100 - remaining, windowMinutes: known.minutes, resetsAt: Number.isFinite(reset) ? Math.round(reset / 1000) : null });
+      const known = WINDOW_NAMES[asText(get(bucket, 'window'))] || { name: String(get(bucket, 'displayName') || '额度'), minutes: null as number | null };
+      // proto3 omits a zero remainingFraction, so absent means 0 left; anything else non-numeric
+      // marks the whole bucket malformed and it is skipped, so a broken answer falls back to the
+      // per-model numbers instead of drawing bogus rows.
+      const fraction = get(bucket, 'remainingFraction');
+      if (fraction != null && (typeof fraction !== 'number' || !Number.isFinite(fraction))) continue;
+      const remaining = Math.max(0, Math.min(100, (typeof fraction === 'number' ? fraction : 0) * 100));
+      const reset = Date.parse(asText(get(bucket, 'resetTime')));
+      // A missing bucketId is not `"undefined"` (String() would lie); the fallback id stays
+      // unique by counting the windows already collected.
+      const id0 = asText(get(bucket, 'bucketId'));
+      windows.push({ id: id0 || `${groupName}·${known.name}·${windows.length + 1}`, label: `${name} · ${known.name}`, remainingPercent: remaining, usedPercent: 100 - remaining, windowMinutes: known.minutes, resetsAt: Number.isFinite(reset) ? Math.round(reset / 1000) : null });
     }
   }
   return { available: !!windows.length, windows, reason: windows.length ? undefined : 'Antigravity 没有返回模型额度' };
@@ -605,7 +613,7 @@ class AntigravityBridge extends EventEmitter {
   async getUsage(): Promise<Usage> {
     const reason = this.sendBlockedReason();
     if (reason) return { available: false, reason, short: reason === NO_LS ? '未运行' : '未安装' };
-    const summary = await this.ls('RetrieveUserQuotaSummary', {}, { timeout: 10000 }).catch(() => null);
+    const summary = await this.ls('RetrieveUserQuotaSummary', {}, { timeout: 3000 }).catch(() => null);
     if (summary) { const grouped = groupsOf(summary); if (grouped.available) return grouped; }
     const status = await this.ls('GetUserStatus', {}, { timeout: 10000 });
     // Lead with the model of the most recent conversation, as the desktop picker does.

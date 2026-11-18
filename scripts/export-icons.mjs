@@ -3,8 +3,11 @@
 // Run: npm run export:icons  — replaces the browser-based pipeline (faster, no network hops).
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
+
+const messageOf = err => (err instanceof Error ? err.message : String(err));
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LOGO = path.join(ROOT, 'src/client/public/assets/logo');
@@ -43,17 +46,48 @@ const ico = Buffer.concat([header, ...dirs, ...blobs]);
 fs.writeFileSync(path.join(LOGO, 'logo.ico'), ico);
 fs.writeFileSync(path.join(dist, 'logo.ico'), ico);
 
-// The shortcut's icon copy, beside the other local caches. A fresh name each run defeats the
-// Windows icon cache, which does not refresh on a same-path content change.
+// The shortcut's icon copy, beside the other local caches, at a stable path this script owns.
+// Windows does not refresh an icon when a file changes under the same path, so after writing
+// the copy every desktop shortcut that points at it is re-saved and the shell is told to
+// rebuild its icon cache — every run, not only when the pointer moved.
 const cacheDir = path.join(process.env.LOCALAPPDATA || '', 'agent-frontdesk');
 fs.mkdirSync(cacheDir, { recursive: true });
-const stamp = Date.now().toString(36);
-const shortcutIcon = path.join(cacheDir, `frontdesk-${stamp}.ico`);
+const shortcutIcon = path.join(cacheDir, 'frontdesk.ico');
 fs.writeFileSync(shortcutIcon, ico);
-for (const file of fs.readdirSync(cacheDir)) {
-  if (/^frontdesk-.*\.ico$/.test(file) && file !== path.basename(shortcutIcon)) {
-    fs.rmSync(path.join(cacheDir, file));
-    console.log('removed stale shortcut icon:', file);
+
+const ps = `
+$ErrorActionPreference = 'Stop'
+$ico = Join-Path $env:LOCALAPPDATA 'agent-frontdesk\\frontdesk.ico'
+$fixed = @()
+foreach ($base in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('CommonDesktopDirectory'))) {
+  if (-not $base -or -not (Test-Path $base)) { continue }
+  $shell = New-Object -ComObject WScript.Shell
+  foreach ($lnk in Get-ChildItem $base -Filter '*.lnk') {
+    $s = $shell.CreateShortcut($lnk.FullName)
+    if ($s.IconLocation -and $s.IconLocation -match 'agent-frontdesk') {
+      $index = if ($s.IconLocation -match ',(\\d+)\\s*$') { $Matches[1] } else { '0' }
+      $s.IconLocation = "$ico,$index"
+      $s.Save()
+      $fixed += $lnk.Name
+    }
   }
 }
+Add-Type -TypeDefinition '[DllImport("shell32.dll")] public static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);' -Name Sh -Namespace Win
+[Win.Sh]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)
+Write-Output ("lnk re-saved: " + ($fixed -join ', '))
+`.trim();
+try {
+  const out = execFileSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], { encoding: 'utf8', timeout: 60000 });
+  console.log(out.trim());
+  // Old stamped copies from earlier runs are only removed once the pointers moved safely.
+  for (const file of fs.readdirSync(cacheDir)) {
+    if (/^frontdesk-.*\.ico$/.test(file)) {
+      fs.rmSync(path.join(cacheDir, file));
+      console.log('removed stale shortcut icon:', file);
+    }
+  }
+} catch (err) {
+  console.log('shortcut refresh failed (the old icon file is kept):', messageOf(err));
+}
 console.log('icons exported; shortcut icon:', shortcutIcon);
+

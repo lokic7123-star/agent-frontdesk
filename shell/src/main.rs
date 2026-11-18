@@ -13,7 +13,6 @@ use tao::{
 };
 use wry::{WebViewBuilder, WebViewBuilderExtWindows, http::Request};
 
-const URL: &str = "http://127.0.0.1:4100";
 const LOGO: &[u8] = include_bytes!("../../src/client/public/assets/logo/logo-512.png");
 
 #[derive(Debug)]
@@ -102,8 +101,8 @@ enum UserEvent {
     Maximize,
     DragWindow,
     CloseWindow,
-    MouseDown(i32, i32),
-    MouseMove(i32, i32),
+    MouseDown(f64, f64),
+    MouseMove(f64, f64),
 }
 
 fn icon() -> Option<Icon> {
@@ -113,12 +112,22 @@ fn icon() -> Option<Icon> {
 }
 
 // The page lives behind the local server; give it a moment rather than showing an error page.
-fn wait_for_server() {
-    use std::net::{TcpStream, SocketAddr};
+// The address follows FRONTDESK_URL (default http://127.0.0.1:4100); an unparsable value falls
+// back to the default rather than aborting the startup.
+fn server_url() -> String {
+    let url = std::env::var("FRONTDESK_URL").unwrap_or_else(|_| "http://127.0.0.1:4100".into());
+    if url.starts_with("http://") || url.starts_with("https://") { url } else { "http://127.0.0.1:4100".into() }
+}
+
+fn wait_for_server(url: &str) {
+    use std::net::{TcpStream, ToSocketAddrs};
     use std::time::Duration;
-    let addr: SocketAddr = "127.0.0.1:4100".parse().unwrap();
+    let authority = url.strip_prefix("http://").or_else(|| url.strip_prefix("https://")).unwrap_or("127.0.0.1:4100").to_string();
+    let addrs: Vec<_> = authority.to_socket_addrs().map(|iter| iter.collect()).unwrap_or_default();
     for _ in 0..60 {
-        if TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok() { return; }
+        for addr in &addrs {
+            if TcpStream::connect_timeout(addr, Duration::from_millis(400)).is_ok() { return; }
+        }
         std::thread::sleep(Duration::from_millis(500));
     }
 }
@@ -134,7 +143,8 @@ fn main() -> wry::Result<()> {
         .build(&event_loop)
         .unwrap();
 
-    wait_for_server();
+    let url = server_url();
+    wait_for_server(&url);
 
     let proxy = event_loop.create_proxy();
     let handler = move |req: Request<String>| {
@@ -146,11 +156,17 @@ fn main() -> wry::Result<()> {
             other => {
                 let mut parts = other.split([':', ',']);
                 match (parts.next().unwrap(), parts.next(), parts.next()) {
+                    // Coordinates arrive as CSS pixels and may be fractional; a malformed or
+                    // unparsable pair is ignored instead of taking the window down.
                     ("mousedown", Some(x), Some(y)) => {
-                        let _ = proxy.send_event(UserEvent::MouseDown(x.parse().unwrap(), y.parse().unwrap()));
+                        if let (Ok(x), Ok(y)) = (x.parse::<f64>(), y.parse::<f64>()) {
+                            let _ = proxy.send_event(UserEvent::MouseDown(x, y));
+                        }
                     }
                     ("mousemove", Some(x), Some(y)) => {
-                        let _ = proxy.send_event(UserEvent::MouseMove(x.parse().unwrap(), y.parse().unwrap()));
+                        if let (Ok(x), Ok(y)) = (x.parse::<f64>(), y.parse::<f64>()) {
+                            let _ = proxy.send_event(UserEvent::MouseMove(x, y));
+                        }
                     }
                     _ => {}
                 }
@@ -163,7 +179,7 @@ fn main() -> wry::Result<()> {
         .map(|local| std::path::PathBuf::from(local).join("agent-frontdesk").join("webview"));
     let mut context = wry::WebContext::new(data_dir);
     let webview = WebViewBuilder::new_with_web_context(&mut context)
-        .with_url(URL)
+        .with_url(&url)
         .with_ipc_handler(handler)
         .with_accept_first_mouse(true)
         .with_initialization_script("window.__fdShell = true;")
@@ -182,15 +198,19 @@ fn main() -> wry::Result<()> {
             Event::UserEvent(UserEvent::Minimize) => window.set_minimized(true),
             Event::UserEvent(UserEvent::Maximize) => window.set_maximized(!window.is_maximized()),
             Event::UserEvent(UserEvent::DragWindow) => { let _ = window.drag_window(); }
+            // The page reports CSS pixels; the frame edges are compared in physical pixels, so
+            // the coordinates are converted with the same scale the inset was multiplied by.
             Event::UserEvent(UserEvent::MouseDown(x, y)) => {
-                let res = hit_test(window.inner_size(), x, y, window.scale_factor());
+                let scale = window.scale_factor();
+                let res = hit_test(window.inner_size(), (x * scale) as i32, (y * scale) as i32, scale);
                 match res {
                     HitTestResult::Client | HitTestResult::NoWhere => {}
                     _ => res.drag_resize_window(&window),
                 }
             }
             Event::UserEvent(UserEvent::MouseMove(x, y)) => {
-                hit_test(window.inner_size(), x, y, window.scale_factor()).change_cursor(&window);
+                let scale = window.scale_factor();
+                hit_test(window.inner_size(), (x * scale) as i32, (y * scale) as i32, scale).change_cursor(&window);
             }
             _ => (),
         }

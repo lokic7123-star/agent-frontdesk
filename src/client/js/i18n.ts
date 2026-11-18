@@ -353,6 +353,8 @@ const REPORT_PATTERNS: Array<[RegExp, (match: RegExpExecArray) => string]> = [
   [/^profile 里没有 (.+) 的认法$/, match => `No selector for ${match[1] ?? ''} in the profile`],
   [/^这个动作（(.+)）的 Windows 支持还没写好$/, match => `Windows support for "${match[1] ?? ''}" is not implemented yet`],
   [/^(.+?)没有在运行$/, match => { const app = match[1] ?? ''; return /\s*桌面版$/.test(app) ? `${owner(app)} desktop app isn't running` : `${app} is not running`; }],
+  // Antigravity's quota windows combine at runtime (group · window); both halves are known.
+  [/^(.{1,60}?) · (每周限额|5 小时限额|额度)$/, match => `${english(match[1])} · ${english(match[2])}`],
 ];
 // A text from the server, in the interface language. Unknown texts are shown as they came.
 // "Claude 桌面版" → "Claude's"; the bare "桌面版" → "the desktop app's".

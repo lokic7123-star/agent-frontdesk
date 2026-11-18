@@ -2038,13 +2038,18 @@ html[data-agents="none"] .sidebar, html[data-agents="none"] .chat-header, html[d
 @media (prefers-reduced-motion: reduce) { .dock-add.is-inviting, .engine-switch.is-joining, .agent-row.is-pending .switch-knob { animation: none; } .switch, .switch-knob, .agent-face { transition: none; } }
 
 /* App-window mode (window-controls-overlay, js/wco.ts): the page's top strip is the title bar.
-   The chat header and the brand mark drag the window; their interactive children opt out. The
-   caption buttons sit left of the system's own, which the page keeps clear (--caption-w). */
+   The chat header and the brand mark drag the window; only interactive controls opt out, so the
+   title area stays draggable. The caption strip exists in the native shell only (Edge's overlay
+   keeps its own system buttons, so the drawn ones would be dead); everything yields to it: the
+   chat header's right padding and the side panel's head both step aside by caption + strip. */
 .wco-buttons { display: none; }
-html[data-wco="1"] .chat-header { height: var(--titlebar-h, 40px); app-region: drag; -webkit-app-region: drag; padding-right: calc(var(--caption-w, 138px) + 6px); }
-html[data-wco="1"] .chat-header > *, html[data-wco="1"] .chat-header button { app-region: no-drag; -webkit-app-region: no-drag; }
+html[data-wco="1"] { --wco-btn-w: 0px; }
+html[data-wco-shell="1"] { --wco-btn-w: 138px; }
+html[data-wco="1"] .chat-header { height: var(--titlebar-h, 40px); app-region: drag; -webkit-app-region: drag; padding-right: calc(var(--caption-w, 138px) + var(--wco-btn-w, 0px) + 6px); }
+html[data-wco="1"] .chat-header button, html[data-wco="1"] .chat-header a, html[data-wco="1"] .chat-header input, html[data-wco="1"] .chat-header select { app-region: no-drag; -webkit-app-region: no-drag; }
 html[data-wco="1"] .control-brand { app-region: drag; -webkit-app-region: drag; }
-html[data-wco="1"] .wco-buttons { display: flex; position: fixed; top: 0; right: var(--caption-w, 138px); height: var(--titlebar-h, 40px); z-index: 40; }
+html[data-wco-shell="1"] .wco-buttons { display: flex; position: fixed; top: 0; right: var(--caption-w, 0px); height: var(--titlebar-h, 40px); z-index: 40; }
+html[data-wco-shell="1"] .side-head { padding-right: calc(var(--wco-btn-w, 0px) + 6px); }
 html[data-wco="1"] .wco-buttons button { width: 46px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--muted); cursor: default; }
 html[data-wco="1"] .wco-buttons button:hover { background: var(--surface); color: var(--text); }
 html[data-wco="1"] .wco-buttons #wco-close:hover { background: var(--negative, #c4351f); color: #fff; }

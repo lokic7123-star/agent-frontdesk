@@ -14,7 +14,9 @@ If Not Probe(url) Then
     sh.Run """Agent Frontdesk.exe""", 0, False
   ElseIf fso.FileExists(dir & "\dist\server\server.js") Then
     sh.CurrentDirectory = dir
-    sh.Run "cmd /c node dist\server\server.js", 0, False
+    ' An absolute path, so the running node names the project in its command line and the stop
+    ' script can find (and stop) exactly this process by matching it.
+    sh.Run "cmd /c node """ & dir & "\dist\server\server.js""", 0, False
   Else
     MsgBox "Agent Frontdesk is not built yet: run npm ci && npm run build:exe in this folder first.", 48, "Agent Frontdesk"
     WScript.Quit 1
