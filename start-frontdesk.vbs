@@ -25,7 +25,23 @@ If Not Probe(url) Then
   Next
 End If
 
-CreateObject("Shell.Application").ShellExecute url, "", "", "open", 1
+' Open as an app-like window (Edge --app: its own window, no address bar, the page's favicon in
+' the taskbar), falling back to the default browser when Edge is not installed.
+OpenAppWindow url
+
+Sub OpenAppWindow(u)
+  Dim edges, i
+  edges = Array( _
+    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", _
+    "C:\Program Files\Microsoft\Edge\Application\msedge.exe")
+  For i = 0 To UBound(edges)
+    If fso.FileExists(edges(i)) Then
+      sh.Run """" & edges(i) & """ --app=" & u, 1, False
+      Exit Sub
+    End If
+  Next
+  CreateObject("Shell.Application").ShellExecute u, "", "", "open", 1
+End Sub
 
 Function Probe(u)
   Dim http
