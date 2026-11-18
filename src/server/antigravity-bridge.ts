@@ -75,6 +75,11 @@ function normPath(raw: unknown): string {
   const resolved = path.resolve(value).replace(/\\/g, '/');
   return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 }
+function repoKeyOf(cwd: string): string {
+  const norm = cwd.replace(/\\/g, '/').replace(/^([A-Z]):/, (_, d: string) => `${d.toLowerCase()}:`);
+  const s = /^[a-z]:\/+$/i.test(norm) ? `${norm.slice(0, 2)}/` : /^\/+$/.test(norm) ? '/' : norm.replace(/\/+$/, '');
+  return s ? `repo:${s}` : '';
+}
 function stepOf(tool: unknown, id: string): UnifiedStep {
   const input = decodeArgs(get(tool, 'args'));
   const name = asText(get(tool, 'name'));
@@ -186,6 +191,8 @@ class AntigravityBridge extends EventEmitter {
   recentCache?: Map<string, { key: string; messages: RecentMessage[] }>;
   lsCache: { at: number; value: LsEnv } | null;
   pidCache: Map<number, { ok: boolean; at: number }>;
+  ownIds: Set<string>;
+  checkouts: Map<string, string>;
   constructor(config: AntigravityConfig = loadConfig(), env: NodeJS.ProcessEnv = process.env) {
     super();
     this.home = os.homedir();
@@ -205,6 +212,8 @@ class AntigravityBridge extends EventEmitter {
     this.asks = new Map(); // what the agent is waiting on the person for, by card id
     this.lsCache = null;
     this.pidCache = new Map();
+    this.ownIds = new Set();
+    this.checkouts = new Map();
   }
 
   // One call to the language server the desktop app runs (the app's own channel).
@@ -309,23 +318,84 @@ class AntigravityBridge extends EventEmitter {
     return { connected: fs.existsSync(this.dbPath) && !reason, canSend: !reason, error: reason, engine: 'antigravity', appDataDir: this.agyDir };
   }
 
+  checkoutOf(cwd: string): string {
+    if (!cwd) return '';
+    const cached = this.checkouts.get(cwd);
+    if (cached !== undefined) return cached;
+    let resolved = '';
+    try {
+      let dir = cwd;
+      while (dir && !fs.existsSync(path.join(dir, '.git'))) {
+        const up = path.dirname(dir);
+        if (up === dir) { dir = ''; break; }
+        dir = up;
+      }
+      if (dir) {
+        const git = path.join(dir, '.git');
+        if (fs.statSync(git).isFile()) {
+          const gitdirRaw = fs.readFileSync(git, 'utf8').match(/gitdir:\s*(.+)/)?.[1]?.trim() || '';
+          if (gitdirRaw) {
+            const gitdir = path.resolve(dir, gitdirRaw), commonFile = path.join(gitdir, 'commondir');
+            const commonGit = fs.existsSync(commonFile)
+              ? path.resolve(gitdir, fs.readFileSync(commonFile, 'utf8').trim())
+              : (/[\\/]\.git[\\/]worktrees[\\/][^\\/]+[\\/]?$/i.test(gitdir) ? path.resolve(gitdir, '../..') : '');
+            if (commonGit && path.basename(commonGit).toLowerCase() === '.git') resolved = path.dirname(commonGit);
+          }
+        }
+      }
+    } catch {}
+    if (!resolved) {
+      const agentWt = cwd.match(/^(.*?)[\\/]\.(?:agents|claude)[\\/]worktrees[\\/]/);
+      if (agentWt?.[1]) resolved = agentWt[1];
+      else {
+        const wtBase = path.join(this.agyDir, 'worktrees'), rel = path.relative(wtBase, cwd);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+          const proj = rel.split(/[\\/]/)[0] || '';
+          if (proj && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(proj)) resolved = proj;
+        }
+      }
+    }
+    const out = resolved || cwd;
+    this.checkouts.set(cwd, out);
+    return out;
+  }
+
   summaries(): Bag[] {
     if (!fs.existsSync(this.dbPath)) return [];
-    return readSqlite(this.dbPath, 'SELECT conversation_id, title, preview, last_modified_time, workspace_uris, not_fully_idle, killed, status, step_count, last_user_input_time, last_user_input_step_index FROM conversation_summaries WHERE nesting_depth = 0 ORDER BY last_modified_time DESC LIMIT 200;');
+    const rows = readSqlite(this.dbPath, 'SELECT * FROM conversation_summaries WHERE nesting_depth = 0 ORDER BY last_modified_time DESC;');
+    return rows.filter(item => {
+      const id = asText(item['conversation_id']);
+      if (this.ownIds.has(id) || this.activeWatchers.has(id)) return true;
+      if (item['source'] === 'CORTEX_TRAJECTORY_SOURCE_CLI' || item['project_id'] === 'default-cli-project') return false;
+      if (item['parent_conversation_id'] || item['agent_name']) return false;
+      if ('project_id' in item) {
+        if (!asText(item['title']) && !asText(item['preview'])) return false;
+        if (item['project_id'] === '' && Number(item['last_user_input_step_index']) < 0) return false;
+      }
+      return true;
+    }).slice(0, 200);
   }
 
   sessionOf(item: Bag, sendBlocked = this.sendBlockedReason()): UnifiedSession {
+    const cwd = workspaceOf(item['workspace_uris']), root = this.checkoutOf(cwd);
+    const group = root && root !== cwd
+      ? { id: repoKeyOf(root), name: path.basename(root) || root, cwd: path.isAbsolute(root) ? root : cwd }
+      : undefined;
     return new UnifiedSession({
       id: asText(item['conversation_id']),
       engine: 'antigravity',
       title: asText(item['title'] || item['preview'] || 'Antigravity 会话'),
       updatedAt: toIso(item['last_modified_time']),
-      cwd: workspaceOf(item['workspace_uris']),
+      cwd,
       status: Number(item['not_fully_idle']) && !Number(item['killed']) ? 'busy' : 'idle',
       isDesktopActive: !!Number(item['not_fully_idle']),
       sendBlocked,
       // When the running turn began: the avatar's bubble shows only what was said since.
-      metadata: { status: item['status'], turnStartedAt: Date.parse(String(item['last_user_input_time'])) > 0 ? toIso(item['last_user_input_time']) : undefined },
+      metadata: {
+        status: item['status'],
+        turnStartedAt: Date.parse(String(item['last_user_input_time'])) > 0 ? toIso(item['last_user_input_time']) : undefined,
+        ...(group ? { group } : {}),
+      },
     });
   }
 
@@ -666,7 +736,19 @@ class AntigravityBridge extends EventEmitter {
   // A file from the chat, opened in the desktop. Antigravity is an editor and opens a file it is
   // handed in the window whose workspace holds it, which is what its own file links do; there is
   // no accessibility flow for its chat, so the chat itself is not brought up.
-  fileRoots(conversationId: string): string[] { return /^[\w-]{1,80}$/.test(String(conversationId)) ? [path.join(this.brainDir, conversationId)] : []; }
+  fileRoots(conversationId: string): string[] {
+    if (!/^[\w-]{1,80}$/.test(String(conversationId))) return [];
+    const roots = [path.join(this.brainDir, conversationId)];
+    try {
+      const row = fs.existsSync(this.dbPath)
+        ? readSqlite(this.dbPath, 'SELECT workspace_uris FROM conversation_summaries WHERE conversation_id = ? LIMIT 1', [conversationId])[0]
+        : null;
+      const cwd = row ? workspaceOf(row['workspace_uris']) : '';
+      const checkout = cwd ? this.checkoutOf(cwd) : '';
+      if (checkout && checkout !== cwd && path.isAbsolute(checkout)) roots.push(checkout);
+    } catch {}
+    return roots;
+  }
   openFile(_conversationId: string, { absolute }: Pick<FileTarget, 'absolute'>, run: OpenRunner = execFile): Promise<{ ok: true; pressed: true }> {
     if (process.platform === 'win32' && run === execFile) {
       const bin = path.join(this.env['LOCALAPPDATA'] || path.join(this.home, 'AppData', 'Local'), 'Programs', 'antigravity', 'Antigravity.exe');
@@ -745,6 +827,7 @@ class AntigravityBridge extends EventEmitter {
       const cascadeId = get(started, 'cascadeId');
       if (!cascadeId) throw new Error('Antigravity 未返回会话 ID');
       const id = String(cascadeId);
+      this.ownIds.add(id);
       await this.sendUserMessage(id, this.buildAgyPrompt(prompt, attachments), { model: wanted });
       return { id, engine: 'antigravity', started: true, cwd };
     }
@@ -756,6 +839,7 @@ class AntigravityBridge extends EventEmitter {
     const { data, stdout } = await this.agentapi(args);
     const id = asText(get(data, 'response', 'conversationId') || get(data, 'conversationId') || stdout.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0] || '');
     if (!id) throw new Error('Antigravity 未返回会话 ID');
+    this.ownIds.add(id);
     return { id, engine: 'antigravity', started: true };
   }
 

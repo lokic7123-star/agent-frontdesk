@@ -257,6 +257,38 @@ test('Antigravity reads a conversation without a transcript from the language se
   fs.rmSync(dir, { recursive: true });
 });
 
+test('Antigravity excludes CLI/subagent rows and groups worktrees under their main checkout', async t => {
+  const { AntigravityBridge } = __antigravity_bridge;
+  const Database = __node_sqlite.DatabaseSync;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-sub-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const repo = path.join(dir, 'main-repo'), gitDir = path.join(repo, '.git', 'worktrees', 'feat'), wt = path.join(dir, 'wt', 'feat');
+  fs.mkdirSync(gitDir, { recursive: true }); fs.mkdirSync(wt, { recursive: true });
+  fs.writeFileSync(path.join(gitDir, 'commondir'), '../..\n');
+  fs.writeFileSync(path.join(wt, '.git'), `gitdir: ${gitDir}\n`);
+
+  const db = new Database(path.join(dir, 'conversation_summaries.db'));
+  db.exec('CREATE TABLE conversation_summaries (conversation_id text, title text, preview text, last_modified_time text, workspace_uris text, not_fully_idle numeric, killed numeric, status text, step_count integer, last_user_input_time text, last_user_input_step_index integer, nesting_depth integer, source text, project_id text, parent_conversation_id text, agent_name text)');
+  const ins = db.prepare('INSERT INTO conversation_summaries VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+  const uri = (p: string) => JSON.stringify([__node_url.pathToFileURL(p).href]);
+  ins.run('main-1', 'Worktree task', '', '2026-11-18T01:00:00Z', uri(wt), 0, 0, '', 5, '2026-11-18T01:00:00Z', 1, 0, '', 'proj-1', '', '');
+  ins.run('cli-1', 'CLI subagent', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 2, '', -1, 0, 'CORTEX_TRAJECTORY_SOURCE_CLI', 'default-cli-project', '', '');
+  ins.run('sub-1', 'Nested agent', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 2, '', -1, 0, '', 'proj-1', 'main-1', 'reviewer');
+  ins.run('probe-1', 'Unindexed probe', '', '2026-11-18T02:00:00Z', uri(repo), 0, 0, '', 0, '', -1, 0, '', '', '', '');
+  db.close();
+
+  const bridge = new AntigravityBridge({ agyHome: dir, agentapiBin: '/bin/false', catalogs: {} }, { ANTIGRAVITY_LS_ADDRESS: '127.0.0.1:9', ANTIGRAVITY_CSRF_TOKEN: 'csrf' });
+  t.after(() => bridge.dispose());
+  const list = await bridge.listConversations();
+  assert.deepEqual(list.map(item => item.id), ['main-1']);
+  assert.deepEqual(list[0]?.metadata.group, {
+    id: `repo:${repo.replace(/\\/g, '/').replace(/^([A-Z]):/, (_, d: string) => `${d.toLowerCase()}:`)}`,
+    name: 'main-repo',
+    cwd: repo,
+  });
+  assert.ok(bridge.fileRoots('main-1').includes(repo));
+});
+
 test('an Antigravity turn that ends with an error and no reply ends the run as failed instead of leaving it thinking', async t => {
   const steps = [agyStep('USER_INPUT', 'DONE', { userInput: { userResponse: 'old' } }), agyStep('PLANNER_RESPONSE', 'DONE', { plannerResponse: { response: 'old answer' } })];
   const { bridge, calls, dir } = antigravityFixture(steps, { inputIndex: 0, t });
