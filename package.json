@@ -21,7 +21,8 @@
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json && tsc -p tsconfig.test.json",
     "check": "npm run typecheck && npm run build",
-    "build:exe": "node scripts/build-exe.mjs"
+    "build:exe": "node scripts/build-exe.mjs",
+    "export:icons": "node scripts/export-icons.mjs"
   },
   "keywords": [
     "ai-agents",
@@ -59,6 +60,7 @@
     "node": ">=22.16"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/compression": "1.8.1",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.3.0",

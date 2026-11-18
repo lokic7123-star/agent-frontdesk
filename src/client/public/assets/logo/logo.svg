@@ -1,31 +1,35 @@
-<!-- Agent Frontdesk: a front-desk bell that is also an agent, drawn with light — gradients and drop
-     shadows give the flat mark depth. The square master; the page rounds
-     its corners (style.css, .brand-logo). logo-*.png and logo.ico are this file at each size. -->
+<!-- Agent Frontdesk: a front-desk bell that is also an agent, drawn with light — the near-black
+     ground, gradients and drop shadows give the flat mark depth. The square master; the page
+     rounds its corners (style.css, .brand-logo). logo-*.png and logo.ico are this file at each size. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#242E68"/>
-      <stop offset=".52" stop-color="#4150CF"/>
-      <stop offset="1" stop-color="#8457EA"/>
+      <stop offset="0" stop-color="#2E2E36"/>
+      <stop offset=".5" stop-color="#17171C"/>
+      <stop offset="1" stop-color="#060608"/>
     </linearGradient>
-    <radialGradient id="glow" cx=".5" cy=".42" r=".62">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".16"/>
-      <stop offset=".55" stop-color="#FFFFFF" stop-opacity=".05"/>
+    <radialGradient id="glow" cx=".5" cy=".4" r=".62">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".1"/>
+      <stop offset=".55" stop-color="#FFFFFF" stop-opacity=".03"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".13"/>
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".09"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="bell" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset=".42" stop-color="#EAEFFF"/>
-      <stop offset=".78" stop-color="#BCC7F5"/>
-      <stop offset="1" stop-color="#96A5E6"/>
+      <stop offset=".4" stop-color="#EDF1FF"/>
+      <stop offset=".75" stop-color="#B7C2F2"/>
+      <stop offset="1" stop-color="#8E9DE4"/>
     </linearGradient>
     <linearGradient id="deskTop" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FBFCFF"/>
       <stop offset="1" stop-color="#BFC9F1"/>
+    </linearGradient>
+    <linearGradient id="deskSide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A3F63"/>
+      <stop offset="1" stop-color="#12141F"/>
     </linearGradient>
     <linearGradient id="stem" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#D6DDFA"/>
@@ -37,24 +41,29 @@
       <stop offset="1" stop-color="#5E9A7C"/>
     </radialGradient>
     <filter id="bellShadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0B1034" flood-opacity=".5"/>
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000000" flood-opacity=".65"/>
     </filter>
     <filter id="capShadow" x="-60%" y="-60%" width="220%" height="220%">
-      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#0B1034" flood-opacity=".45"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000000" flood-opacity=".6"/>
+    </filter>
+    <filter id="softBlur" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="16"/>
     </filter>
   </defs>
   <rect width="512" height="512" fill="url(#bg)"/>
   <rect width="512" height="512" fill="url(#glow)"/>
-  <rect width="512" height="200" fill="url(#sheen)"/>
+  <rect width="512" height="190" fill="url(#sheen)"/>
   <g transform="translate(256 262) scale(1.16) translate(-256 -262)">
-    <!-- the desk, with a darker slab beneath it for thickness -->
-    <rect x="108" y="364" width="296" height="36" rx="18" fill="#141A45"/>
+    <!-- light pooling under the desk, so it sits on something -->
+    <ellipse cx="256" cy="424" rx="170" ry="22" fill="#FFFFFF" opacity=".08" filter="url(#softBlur)"/>
+    <!-- the desk, with a shaded side face for thickness -->
+    <rect x="108" y="370" width="296" height="34" rx="17" fill="url(#deskSide)"/>
     <rect x="108" y="356" width="296" height="36" rx="18" fill="url(#deskTop)"/>
     <!-- the bell on it, which is also an agent looking over the desk -->
     <path d="M146 340V314C146 250 195 200 256 200s110 50 110 114v26Z" fill="url(#bell)" filter="url(#bellShadow)"/>
     <!-- its eyes, with a catch-light each -->
-    <rect x="205" y="264" width="28" height="48" rx="14" fill="#1A2153"/>
-    <rect x="279" y="264" width="28" height="48" rx="14" fill="#1A2153"/>
+    <rect x="205" y="264" width="28" height="48" rx="14" fill="#161A38"/>
+    <rect x="279" y="264" width="28" height="48" rx="14" fill="#161A38"/>
     <circle cx="226" cy="277" r="6" fill="#FFFFFF" opacity=".85"/>
     <circle cx="300" cy="277" r="6" fill="#FFFFFF" opacity=".85"/>
     <!-- the button you press to call it, in the console's own green -->
