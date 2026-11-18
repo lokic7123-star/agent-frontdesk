@@ -48,8 +48,8 @@ npm start
 | 应用 | 读历史 | 发消息 | 状态 |
 | --- | --- | --- | --- |
 | Antigravity | 本机数据库 + 语言服务器（`hub_<port>.json` 发现，含进程名 PID 校验，Windows 原样可用） | 语言服务器直连（协议，已真机验证模型/配额/历史/预览） | ✅ 读通道、配额、历史、文件预览、前端展示全通；实机网页发消息待交互窗口确认 |
-| Codex | 桌面版的 app-server（支持 MSIX `OpenAI.Codex`） | 消息队列 + 窗口间 IPC（`\\.\pipe\codex-ipc`）+ `codex://threads/wake/` + UIA（`Program.cs` 目前实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`；对 `new`、模型/推理/模式切换、`steer`、卡片、`open-file`、`show-session`、`chat-*` 返回 `unsupported`） | ✅ 读历史、模型、Plus 额度、图标/精灵图、ChatGPT 模式实机验证通过；纯文本发消息与唤醒待交互桌面实测（UIA 新建/切模型待补） |
-| Claude | Claude Code 会话转录 + 桌面索引 | UIA 引擎（win32 上 dotnet 编译的 `uia-driver`；`Program.cs` 目前实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`，对 `new`、模型/推理/权限切换、`steer`、卡片、`open-file`、`show-session`、`chat-*` 返回 `unsupported`） | 桌面版装机后启用；已接通 `CLAUDE_BIN` 传递；凭据读 `~/.claude/.credentials.json`（Windows 无 keychain） |
+| Codex | 桌面版的 app-server（支持 MSIX `OpenAI.Codex`） | 消息队列 + 窗口间 IPC（`\\.\pipe\codex-ipc`）+ `codex://threads/wake/` + UIA（`Program.cs` 已实现与 Swift 驱动同构的完整命令集：`check`、`warm [check]`、`probe`、`inspect`、`space`、`send`/`send-now`、`stop`、`settings`、`show-session`、`open-file`、`new`/`new-*`、`answer`/`card`/`action`、`chat-*` 与 `EnumWindows` 窗口发现兜底） | ✅ 读历史、模型、Plus 额度、图标/精灵图、ChatGPT 模式、页面渲染与 `.exe` 实编单测通过；真实桌面窗口交互点击（发消息/唤醒/新建/切模型）待非隔离桌面实测 |
+| Claude | Claude Code 会话转录 + 桌面索引 | UIA 引擎（win32 上 dotnet 编译的 `uia-driver`，已实现完整命令协议与 `EnumWindows` 兜底；`keys`/`subrole` 等 macOS 专属匹配方式会自动跳过并用其余 locator 匹配） | 桌面版装机后启用；已接通 `CLAUDE_BIN` 传递；凭据读 `~/.claude/.credentials.json`（Windows 无 keychain） |
 | ZCode / WorkBuddy | 二期（见 docs/zcode-integration.md） | 二期 | 模板位于 `src/server/templates/zcode.plugin.ts`，需复制到 `src/server/plugins/` 并设 `BRIDGE_ZCODE_PREVIEW=1` 后才会在侧栏加载 |
 
 ## 常见问题

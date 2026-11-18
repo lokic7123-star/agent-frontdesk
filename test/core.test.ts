@@ -462,5 +462,13 @@ test('the Windows helper builds through dotnet publish and runs the same protoco
     const realState = await realDesktop.check();
     assert.ok(realDesktop.binary?.endsWith('.exe'), 'Windows UIA helper must end with .exe');
     assert.notEqual(realState.reason, '桌面代发程序没有正常返回');
+    // Expanded UIA protocol check: flag parsing (--space/--previous/--stay) + ms/reads timing fields + non-unsupported handling
+    const checkRes = await realDesktop.runner(must(realDesktop.binary), ['check'], { timeout: 5000, env: { AX_PROFILE: realDesktop.profile } });
+    assert.equal(checkRes.ok, true);
+    assert.equal(typeof checkRes['ms'], 'number');
+    assert.equal(typeof checkRes['reads'], 'number');
+    const leaveRes = await realDesktop.runner(must(realDesktop.binary), ['new-leave', '--space', 'code', '--previous', 'none', '--stay'], { timeout: 5000, env: { AX_PROFILE: realDesktop.profile } });
+    assert.notEqual(leaveRes.code, 'unsupported');
+    assert.equal(typeof leaveRes['ms'], 'number');
   }
 });

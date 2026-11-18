@@ -39,7 +39,7 @@
 ### Codex（MSIX 桌面版读通道 + 模型 + 额度真机验证 ✅；IPC 管道已核实，发消息待交互窗口实测）
 - 本机通过 Microsoft Store / MSIX 安装了官方 `OpenAI.Codex`（`C:\Program Files\WindowsApps\OpenAI.Codex_...\app\`，Alias `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe`）。`config.ts` 通过 `fs.readlinkSync` 解析该别名，自动发现 `resources\codex.exe`、`resources\app.asar` 与 `assets\icon.png`，且 `.exe`/`.cmd`/`.bat` 优先于无扩展名 npm shim；`app-server` 经 `winSpawnArgs()` 启动。
 - 真机实测全通：App Server (`codex app-server --stdio`) 启动成功，读取 10 个模型、Plus 额度（2 个窗口：5h 与 weekly）、3 个项目、9 条会话（含 Codex 本地线程与 ChatGPT 模式会话/项目）与完整历史回合、887B PNG 图标和 1.3MB WebP 精灵图；页面模式切换（Codex ↔ ChatGPT）实机渲染正常。`codex-projects.ts` 与 `codex-bridge.ts` 已补齐反斜杠与盘符大小写归一化。
-- 通过读取本机 `app.asar`（`early-bootstrap-824` 模块 `92272`）核实 Windows 真实 IPC 管道名为 `\\.\pipe\codex-ipc`（已替换原占位名）；`wake()` 已适配 Windows `cmd.exe /d /s /c` + `windowsVerbatimArguments: true` 调用 `start "" "codex://threads/wake/..."`。实际纯文本发送、唤醒与桌面端回流待交互桌面窗口实测；UIA 侧建聊/改模型仍返回 `unsupported`。
+- 通过读取本机 `app.asar`（`early-bootstrap-824` 模块 `92272`）核实 Windows 真实 IPC 管道名为 `\\.\pipe\codex-ipc`（已替换原占位名）；`wake()` 已适配 Windows `cmd.exe /d /s /c` + `windowsVerbatimArguments: true` 调用 `start "" "codex://threads/wake/..."`。实际纯文本发送、唤醒与建聊/改模型交互效果待普通交互桌面窗口实测（`Program.cs` 已补齐全套 UIA 命令协议）。
 
 ### Claude
 - 本机未安装 Claude Desktop（`%APPDATA%\Claude`、`~/.claude` 均无），真机验证待装机。适配代码已就绪：`claude.plugin.ts` 已把 `config.claudeBin` 传入 `ClaudeBridge`；`findClaudeBin()` 与 `config.ts` 均优先探测 `.exe`/`.cmd`/`.bat`（避免命中 npm POSIX shim）、`~/.local/bin/claude.exe` 及 `%APPDATA%\Claude\claude-code`，同时保留显式 `bin: null`；`authStatus` 与 `spawnCli` 改用 `winSpawnArgs()` 消除 `DEP0190`，`loginCommand` 正确拆分 Windows `PATH` 盘符冒号；凭据在 Windows 下优先读取 `~/.claude/.credentials.json`。
@@ -47,15 +47,17 @@
 ### UIA 驱动与构建/前端实机修复
 - C# 驱动（`src/server/native/win32/uia-driver/Program.cs`，net8.0-windows + WPF/WinForms）：
   - 已在入口设置 `Console.InputEncoding = Console.OutputEncoding = new UTF8Encoding(false)`，修复中文 Windows（ACP/OEMCP 936）下输出与标准输入中文乱码，单测与 `.exe` 实机启动返回 JSON 正常（非交互沙箱终端下因窗口站隔离 `MainWindowHandle` 为 0 会报 `not_running`，需在普通交互桌面终端下驱动桌面窗口）。
-  - 当前实现 **6 个命令**：`check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`。其余命令（`new`、`settings`、`new-shown`、`new-controls`、`new-pick`、`new-leave`、`open-file`、`show-session`、`send-now`、`answer`、`card`、`action` 及全部 `chat-*`）以及携带 `--model`/`--effort`/`--mode`/`steer` 的 `send` 均明确返回 `unsupported`（不再静默忽略设置参数）。
-  - `FindByWay` 已拒绝 macOS 专属定位键（`keys`/`url`/`subrole`/`popup`/`has`/`named`/`roles`）、`inside` 容器为空时立即返回空集（不再回退到全窗搜索），并支持 `class` 字符串数组与后缀通配符（如 `ViewToggle-*`）；`BorrowFocusAndPaste` / `BorrowFocusAndKey` 补齐剪贴板重试、发送后等待再还原前台并返回真实发送状态；`FindAppRoot` 统一释放所有 `Process` 句柄并在 `FromHandle` 前先唤醒最小化窗口。
+  - **已补齐与 Swift 驱动同构的完整命令与参数协议**（`ParseArgs` + `FinalizeAndSerialize` 输出 `ms`/`reads`/`via`/`ambiguous`/`unconfirmed`/`restore`/`previousSpace`）：支持 `check`、`warm [check]`（`ProfileCheck` 计算 `drift`/`differ`）、`probe [<key>]`、`inspect`、`space`、`show-session`、`open-file`、`send [steer]`、`send-now`、`stop`、`settings`、`new`/`new-shown`/`new-controls`/`new-pick`/`new-leave`、`answer`、`card`/`action` 及 `chat-status`/`read-chat`/`chat-new`/`chat-send`/`chat-stop`；`FindAppRoot` 增加 `EnumWindows` 窗口兜底；`ShowSession` 支持侧栏行与 `sessionLink` URI 跳转；`Send` 在发现 `--model`/`--effort`/`--mode` 时先调用 `ApplySettings`（失败则拒绝发送，不再静默忽略），并按 `Sole`/`ConfirmedMenu` 防歧义护栏操作控件。
+  - Windows UIA 没有 `AXKeyShortcutsValue` / `AXSubrole`，因此仅包含 `keys` 或 `subrole` 的定位方式会自动跳过并回退到 `class`/`id`/`name`/`prefix`/`contains`/`roles`/`inside`/`has`/`after`/`index`/`url`/`popup` 等定位方式。
   - `DesktopAutomation`（`desktop-automation.ts`）按 `process.arch` 选择 `win-arm64` / `win-x64`，为并发 `dotnet publish` 隔离 `BaseIntermediateOutputPath` 并清理临时目录，`prune()` 补齐递归清理。
-- 前端与构建修复：`vite.config.ts` 在 `build` 时清理 `dist/server` 与 `dist/shared`；`renderers.ts` 的 `filePathOf` 先 `decodeSafe` 再剥离 `file://localhost/` 与前导 `/`，支持含中文/空格的 Windows 盘符路径内联代码；`sidebar.ts` 导出 `repoKey()` 将 `\` 转为 `/`、小写盘符并保留 `c:/` 盘根；`app.ts`/`kit.ts`/`new-options.ts` 统一按 `/[\\/]/` 切分 basename、`diffCard` 归一化 `cwd` 剥离与 `repoKey` 对比；`i18n.ts` 补齐 Win32 UIA 驱动全部报错翻译，`kit.css`/`style.css` 修复窄屏输入框重叠与长路径溢出。
+- 前端、构建与真机浏览器二轮验收：
+  - `vite.config.ts` 在 `build` 时清理 `dist/server` 与 `dist/shared`；`renderers.ts` 的 `filePathOf` 先 `decodeSafe` 再剥离 `file://localhost/` 与前导 `/`，支持含中文/空格的 Windows 盘符路径内联代码；`sidebar.ts` 导出 `repoKey()` 将 `\` 转为 `/`、小写盘符并保留 `c:/` 盘根；`app.ts`/`kit.ts`/`new-options.ts` 统一按 `/[\\/]/` 切分 basename、`diffCard` 归一化 `cwd` 剥离与 `repoKey` 对比；`i18n.ts` 补齐 Win32 UIA 驱动全部报错翻译，`kit.css`/`style.css` 修复窄屏输入框重叠与长路径溢出。
+  - 启动 `node dist/server/server.js` 后在 Chrome 实机验证 `http://127.0.0.1:4100`：控制台零未捕获报错，Antigravity `200` 会话、`lib/client.js` 预览与 `403` 目录越界/`404` 缺失文件提示正常，Codex `3` 项目无重复分组、`diffCard` 展开折叠及 `Codex ↔ ChatGPT → Codex` 切换正常，`640px`~`1280px` 视口底栏零重叠，`中文 ↔ English ↔ 中文` 切换（含 `Codex's desktop app isn't running`）全部生效。
 
 ## 已知限制（诚实清单）
-1. Codex 桌面版纯文本发消息唤醒（`codex://threads/wake/`）与命名管道（`\\.\pipe\codex-ipc`）插话、Antigravity 网页发消息实机端到端发送，待交互桌面下唤醒桌面窗口实测。
-2. Claude Desktop 未装机，其 UIA 发送未真机验证（代码与 `CLAUDE_BIN` 传递就绪 + 单测通过）。
+1. Codex 桌面版纯文本/设置发消息与唤醒（`codex://threads/wake/`）、命名管道（`\\.\pipe\codex-ipc`）插话、Antigravity 网页发送与 UIA 真实桌面控件命中（`send`/`new`/`settings`/`card`/`chat-*`）待普通交互桌面窗口实测（当前自动化环境处于隔离 WindowStation 且本机未运行 Codex/Claude 桌面窗口）。
+2. Claude Desktop 未装机，其 UIA 发送与 `CLAUDE_BIN` 传递未真机验证（代码就绪 + `.exe` 实编与单测通过）。
 3. ZCode/WorkBuddy 仅模板与分析文档（模板位于 `src/server/templates/zcode.plugin.ts`，默认不被 `PluginHost` 加载，需复制到 `src/server/plugins/` 后才可预览）。
-4. UIA 驱动（`Program.cs`）目前仅实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`；`new`、模型/推理/权限/模式切换、`steer`、卡片操作、`open-file`、`show-session` 与 `chat-*` 均返回 `unsupported`。
+4. `Program.cs` 中依赖 macOS `keys`/`subrole` 的 locator 方式在 Windows 会自动跳过并依赖同定位器的其他 way；实际 Electron/Chromium Windows UIA 树中的精确控件属性命名尚待真实打开桌面窗口后用 `probe` 核验。
 5. CDP（DevToolsActivePort）在本机为陈旧文件，实际未开——Electron CDP 增强通道仍是可选项，未启用。
-6. UIA 驱动的 `warm check` 暂无 profile 漂移巡检（Windows 侧忽略 `check` 参数，行为安全但无 `staleControls` 告警）；`send` 尚不导航会话（`title`/`localId` 未用，文本进入应用当前显示的会话，结果带 `targeted:false` 标记）——都随后续 UIA 补全一并实现。
+6. UIA 的 `warm check` 与 `send` 会话导航虽已在 `Program.cs` 实现协议与逻辑（单测已验证 `.exe` 实编、计时字段与 `--space`/`--previous`/`--stay` 参数解析），但基于真实窗口标题/侧栏按钮/菜单控件的实机交互闭环尚未跑通。

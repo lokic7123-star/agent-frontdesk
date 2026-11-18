@@ -31,22 +31,20 @@
 - `2fee154`+`28a9ed7` `readAppIcon` PNG/asar 支持（Windows 指向 `resources\app.asar`）、
   UIA `send` 标 `targeted:false`、MSIX `OpenAI.Codex` 别名解析、真实 Windows IPC 管道
   `\\.\pipe\codex-ipc`（从 `app.asar` 核实）、`codex://threads/wake/` 及 ChatGPT 模式支持
-- 交叉审核修复批：
+- 交叉审核修复与 UIA 协议补全批（`acf9f14` + 本批）：
   - **零 `DEP0190` 与 Windows 命令发现**：`config.ts` 新增 `winSpawnArgs()`（`cmd.exe /d /s /c` + `windowsVerbatimArguments: true`）并把 `.exe`/`.cmd`/`.bat` 候选排在无扩展名 npm POSIX shim 之前；`antigravity-bridge.ts`、`claude-bridge.ts`、`codex-bridge.ts` 全部移除 `shell: true`；`claude.plugin.ts` 传入 `bin: config.claudeBin` 并补全 `win32` `findClaudeBin()`。
   - **Antigravity `lsEnv()` PID 防复用与路径归一化**：`lsEnv()` 校验合法正整数 PID、端口范围（`1..65535`）、2 秒 `lsCache` 与 30 秒 `pidCache`（Windows 下通过 `tasklist` 校验进程名匹配 `language_server|antigravity|codeium|node`）；`editedFile()` 改用 `/[\\/]\.system_generated[\\/]/` 匹配正反斜杠，`uploadOf()` 媒体匹配归一化 `file://` 与正反斜杠/盘符大小写；`codex-projects.ts` 与 `codex-bridge.ts` 同步归一化 Windows 盘符与分隔符。
-  - **UIA 驱动与构建加固（`Program.cs` 6 命令范围）**：`Program.cs` 设置 `UTF8Encoding(false)` 修复 CP936 乱码；明确仅支持 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`（携带 `--model`/`--effort`/`--mode`/`steer` 的 `send` 与其余动作返回 `unsupported`）；`FindByWay` 拒绝 macOS 专属定位键与空 `inside` 回退并支持 `class` 数组通配；`BorrowFocusAndPaste/Key` 与 `FindAppRoot` 修复焦点/剪贴板与进程句柄释放；`DesktopAutomation` 隔离并发 `dotnet publish` 的 `BaseIntermediateOutputPath` 并支持 `win-arm64` 与递归 `prune()`。
+  - **UIA 驱动全协议与构建加固**：`Program.cs` 设置 `UTF8Encoding(false)` 修复 CP936 乱码，并扩展实现与 Swift 驱动同构的全套命令与参数协议（`check`、`warm [check]`、`probe [<key>]`、`inspect`、`space`、`show-session`、`open-file`、`send [steer]`、`send-now`、`stop`、`settings`、`new`/`new-*`、`answer`/`card`/`action`、`chat-*`，以及 `--model`/`--effort`/`--mode`/`--space`/`--previous`/`--previous-space`/`--stay` 与 `ms`/`reads`/`via`/`ambiguous`/`unconfirmed`/`restore`/`previousSpace`），补齐 `EnumWindows` 窗口发现兜底与 `Sole`/`ConfirmedMenu` 防歧义保护（`Send` 带设置参数失败会拒绝发送）；`DesktopAutomation` 隔离并发 `dotnet publish` 的 `BaseIntermediateOutputPath` 并支持 `win-arm64` 与递归 `prune()`。
   - **前端与 i18n**：`sidebar.ts` 导出 `repoKey` 统一 `\`→`/` 与 `c:/` 盘根；`renderers.ts` 的 `filePathOf` 先 `decodeSafe` 再剥离 `file://localhost/` 并支持含中文/空格盘符内联路径；`app.ts`/`kit.ts`/`new-options.ts`/`kit.css`/`style.css` 修复 basename、diff `cwd`、窄屏重叠与长路径溢出；`i18n.ts` 补齐 Win32 UIA 全部提示翻译。
-  - **测试与文档隐私收尾**：为 `test/{bridges,claude,file-preview,sidebar,spaces,lifecycle,core}.test.ts` 全部 `fs.mkdtempSync` 添加 `t.after(() => fs.rmSync(..., { recursive: true, force: true }))`；`file-preview.test.ts` 在 Windows `EPERM` 时使用目录 junction 验证越界拦截并补充 `filePathOf` 编码盘符与中文路径断言；`sidebar.test.ts` 扩展 i18n 源码扫描至 `.cs` 并验证 `repoKey`；脱敏 `test/bridges.test.ts` 与 `docs/zcode-integration.md` 中的本地用户名，同步更新文档诚实清单。
+  - **测试、真机浏览器二轮验收与文档隐私收尾**：为 `test/{bridges,claude,file-preview,sidebar,spaces,lifecycle,core}.test.ts` 全部 `fs.mkdtempSync` 添加 `t.after(() => fs.rmSync(..., { recursive: true, force: true }))`；`file-preview.test.ts` 验证 Windows `junction` 越界与编码盘符/中文路径；`sidebar.test.ts` 扩展 i18n 源码扫描至 `.cs` 并验证 `repoKey`；`core.test.ts` 扩充 `.exe` 实编 `check`/`new-leave` 协议与 `ms`/`reads` 断言；启动 `http://127.0.0.1:4100` 完成浏览器真机验收（Antigravity/Codex、`diffCard`、模式切换、响应式与 `EN/中文`、零 console 错误）；脱敏本机用户名并同步更新文档。
 
 ## ③ 验证方式
-`npm run check && npm test`（交叉审核修复后全量通过：148/148 pass）与 `docs/windows-port-notes.md`
-中的真机实测记录（Antigravity LS RPC 200 / Codex MSIX `OpenAI.Codex` 读通道 / 图标与精灵图）。
+`npm run check && npm test`（全量 `148/148` 通过 + 零 `DEP0190`）、真实 `.exe` `dotnet publish` 协议运行、Chrome 真机验证 `http://127.0.0.1:4100`，以及 `docs/windows-port-notes.md` 中的真机实测记录。
 
 ## ④ 未决断点（按优先级）
-1. **真机交互发送闭环**：Antigravity 网页发消息全文回显（等待账号配额 429 重置后补验）及 Codex 桌面版交互窗口实测（MSIX `OpenAI.Codex`、`\\.\pipe\codex-ipc` 与 `codex://threads/wake/` 已核实接入，纯文本发送与 IPC 插话待交互窗口实测）。
-2. **Claude Desktop 装机实测**：本机未装 Claude Desktop，UIA 发送及 `CLAUDE_BIN` 实机验证待装机后进行。
-3. **Windows UIA 命令补齐**：`Program.cs` 当前仅实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`（共 6 个命令）；`new`、模型/推理/权限/模式切换、`steer`、卡片、`open-file`、`show-session`、`chat-*` 返回 `unsupported`，以及 `send` 会话导航（`targeted:false`）与 `warm check` 漂移巡检待后续补齐。
-4. **ZCode 二期接入**：模板位于 `src/server/templates/zcode.plugin.ts`（默认不加载，需复制到 `src/server/plugins/`），按 `docs/zcode-integration.md` 取证主会话落盘 → bridge → profiles。
+1. **真机桌面交互发送闭环**：Antigravity 网页发消息全文回显（等待账号配额 429 重置后补验）及 Codex 桌面版普通交互窗口实测（MSIX `OpenAI.Codex`、`\\.\pipe\codex-ipc` 与 `codex://threads/wake/` 已核实接入，纯文本发送、IPC 插话及 UIA `probe`/新建/改模型需在普通交互桌面打开 Codex 窗口实测命中率）。
+2. **Claude Desktop 装机实测**：本机未装 Claude Desktop，UIA 实际窗口命中及 `CLAUDE_BIN` 实机验证待装机后进行。
+3. **ZCode 二期接入**：模板位于 `src/server/templates/zcode.plugin.ts`（默认不加载，需复制到 `src/server/plugins/`），按 `docs/zcode-integration.md` 取证主会话落盘 → bridge → profiles。
 
 ## ⑤ 环境 注意事项
 - 本仓库已设 `core.autocrlf=false`（源码测试按 LF 匹配，勿改回）。
