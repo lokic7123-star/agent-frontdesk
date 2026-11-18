@@ -1,5 +1,7 @@
 # HANDOFF — agent-frontdesk Windows 11 移植
 
+> **2026-11-19 会话收口（只追加不覆盖）**：**fix: 修复 .gitignore, windows-deploy.md, package-lock.json 等 7 个文件 中的逻辑缺陷**——① **问题/目标**：完成 fix: 修复 .gitignore, windows-deploy.md, package-lock.json 等 7 个文件 中的逻辑缺陷；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 e544981（变更 .gitignore, windows-deploy.md, package-lock.json, package.json 等 7 个文件）；④ **结果**：提交 e544981 已入库；物理门禁 [npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
+
 > **2026-11-18 会话收口（只追加不覆盖）**：**feat: 实现并更新 windows-deploy.md, windows-port-notes.md, zcode-integration.md 等 9 个文件**——① **问题/目标**：完成 feat: 实现并更新 windows-deploy.md, windows-port-notes.md, zcode-integration.md 等 9 个文件；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 b0b8430（变更 windows-deploy.md, windows-port-notes.md, zcode-integration.md, sidebar.ts 等 9 个文件）；④ **结果**：提交 b0b8430 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
 
 > **2026-11-18 会话收口（只追加不覆盖）**：**feat: 实现并更新 antigravity-bridge.ts, bridges.test.ts**——① **问题/目标**：完成 feat: 实现并更新 antigravity-bridge.ts, bridges.test.ts；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 3116915（变更 antigravity-bridge.ts, bridges.test.ts）；④ **结果**：提交 3116915 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
