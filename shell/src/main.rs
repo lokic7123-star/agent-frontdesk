@@ -11,7 +11,7 @@ use tao::{
     event_loop::{ControlFlow, EventLoopBuilder},
     window::{CursorIcon, Icon, ResizeDirection, Window, WindowBuilder},
 };
-use wry::{WebViewBuilder, http::Request};
+use wry::{WebViewBuilder, WebViewBuilderExtWindows, http::Request};
 
 const URL: &str = "http://127.0.0.1:4100";
 const LOGO: &[u8] = include_bytes!("../../src/client/public/assets/logo/logo-512.png");
@@ -158,7 +158,11 @@ fn main() -> wry::Result<()> {
         }
     };
 
-    let webview = WebViewBuilder::new()
+    // Browser data lives beside the other local caches, not next to the exe.
+    let data_dir = std::env::var("LOCALAPPDATA").ok()
+        .map(|local| std::path::PathBuf::from(local).join("agent-frontdesk").join("webview"));
+    let mut context = wry::WebContext::new(data_dir);
+    let webview = WebViewBuilder::new_with_web_context(&mut context)
         .with_url(URL)
         .with_ipc_handler(handler)
         .with_accept_first_mouse(true)
