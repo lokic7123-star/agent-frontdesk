@@ -60,10 +60,10 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     pluginDir: env.BRIDGE_PLUGIN_DIR || path.join(HERE, 'plugins'),
     defaultCwd: env.BRIDGE_DEFAULT_CWD || home,
     codexBin: executable('CODEX_BIN', win
-      ? [...(msixCodex ? [path.join(msixCodex, 'resources', 'codex.exe')] : []), 'codex', 'codex.cmd', 'codex.exe', path.join(localPrograms, 'ChatGPT', 'resources', 'codex-cli', 'bin', 'codex.exe')]
+      ? [...(msixCodex ? [path.join(msixCodex, 'resources', 'codex.exe')] : []), 'codex.exe', 'codex.cmd', 'codex.bat', 'codex', path.join(localPrograms, 'ChatGPT', 'resources', 'codex-cli', 'bin', 'codex.exe')]
       : ['codex', '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex']),
     claudeBin: executable('CLAUDE_BIN', win
-      ? ['claude', 'claude.cmd', 'claude.exe', path.join(home, '.local', 'bin', 'claude.exe'), ...findClaude(path.join(appData, 'Claude', 'claude-code'))]
+      ? ['claude.exe', 'claude.cmd', 'claude.bat', 'claude', path.join(home, '.local', 'bin', 'claude.exe'), ...findClaude(path.join(appData, 'Claude', 'claude-code'))]
       : ['claude', ...findClaude(path.join(home, 'Library/Application Support/Claude/claude-code'))]),
     codexHome: env.CODEX_HOME || path.join(home, '.codex'),
     claudeHome: env.CLAUDE_HOME || path.join(home, '.claude'),
@@ -76,7 +76,7 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     settingsFile: env.BRIDGE_SETTINGS_FILE || path.join(ROOT, '.frontdesk.json'),
     agyHome, agentapiBin: executable('AGENTAPI_BIN', win
       // The Windows install ships bin/agentapi.bat (verified on this machine).
-      ? [path.join(agyHome, 'bin', 'agentapi.bat'), path.join(agyHome, 'bin', 'agentapi.exe'), 'agentapi', 'agentapi.exe']
+      ? [path.join(agyHome, 'bin', 'agentapi.exe'), path.join(agyHome, 'bin', 'agentapi.bat'), 'agentapi.exe', 'agentapi.cmd', 'agentapi.bat', 'agentapi']
       : [path.join(agyHome, 'bin/agentapi'), 'agentapi']),
     // The ZCode template's own places; the phase-2 bridge reads them too.
     zcodeAppAsar: env.ZCODE_APP_ASAR || (win ? firstHere([path.join(localPrograms, 'Zcode', 'resources', 'app.asar'), 'D:\\Zcode\\resources\\app.asar']) : undefined),
@@ -84,4 +84,21 @@ function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     catalogs,
   };
 }
-export { loadConfig };
+/** Invokes a Windows `.cmd`/`.bat` shim through `cmd.exe /d /s /c` with explicit quoting so Node 24 never warns on `shell: true`. */
+function winSpawnArgs<T extends object = Record<string, unknown>>(
+  file: string,
+  args: readonly string[] = [],
+  options: T = {} as T,
+): [string, string[], T & { windowsVerbatimArguments?: boolean; windowsHide?: boolean }] {
+  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(file)) {
+    const q = (s: string) => `"${String(s).replace(/\r?\n/g, ' ').replace(/"/g, '""').replace(/%/g, '%%')}"`;
+    const line = [q(file), ...args.map(q)].join(' ');
+    return [
+      process.env.ComSpec || 'cmd.exe',
+      ['/d', '/s', '/c', `"${line}"`],
+      { ...options, windowsVerbatimArguments: true, windowsHide: true },
+    ];
+  }
+  return [file, [...args], options];
+}
+export { loadConfig, winSpawnArgs };

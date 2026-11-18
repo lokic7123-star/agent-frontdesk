@@ -100,8 +100,9 @@ test('history presentation removes patches, raw thinking and file contents', () 
   assert.doesNotMatch(JSON.stringify(output), /PRIVATE|SECRET/);
   assert.equal(at(at(output.turns, 0).artifacts, 0).title, 'brief.md');
 });
-test('tailer retains partial JSON and multibyte text and releases timer', () => {
+test('tailer retains partial JSON and multibyte text and releases timer', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bridge-tail-')), file = path.join(dir, 'history.jsonl');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(file, ''); const records: unknown[] = [], errors: unknown[] = [];
   const tail = tailJsonl(file, 0, record => records.push(record), { onError: err => errors.push(err) });
   const bytes = Buffer.from('{"text":"你好"}\n');

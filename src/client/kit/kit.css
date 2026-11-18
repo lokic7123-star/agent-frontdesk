@@ -106,7 +106,7 @@ html[data-ui="kit"] .kit-tool > summary:hover { color: var(--kit-text); }
 html[data-ui="kit"] .kit-tool > summary .lucide { width: 13px; height: 13px; flex: none; transform: rotate(-90deg); transition: transform 120ms ease; }
 html[data-ui="kit"] .kit-tool[open] > summary .lucide { transform: none; }
 html[data-ui="kit"] .kit-tool.is-failed > summary { color: var(--kit-red); }
-html[data-ui="kit"] .kit-failed { font-size: 12px; }
+html[data-ui="kit"] .kit-failed { font-size: 12px; flex: none; white-space: nowrap; }
 html[data-ui="kit"] .kit-command, html[data-ui="kit"] .kit-input { margin: 0 12px 10px; padding: 10px 14px; border: 1px solid var(--kit-card-line); border-radius: 8px; font-family: var(--kit-mono); font-size: 13px; line-height: 1.6; color: var(--kit-text); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; }
 html[data-ui="kit"] .kit-prompt { color: var(--kit-muted); }
 html[data-ui="kit"] .kit-output { margin: 0; padding: 4px 12px 12px; font-family: var(--kit-mono); font-size: 13px; line-height: 1.6; color: var(--kit-soft); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
@@ -174,8 +174,9 @@ html[data-ui="kit"] #send .lucide { width: 16px; height: 16px; }
 html[data-ui="kit"] #stop .lucide { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 2.4; stroke-linejoin: round; }
 /* model · effort · permission: one row under the composer, right-aligned (kit.ts moves the buttons here) */
 html[data-ui="kit"] .kit-settings { position: absolute; right: 4px; bottom: 4px; display: flex; align-items: center; gap: 2px; }
-html[data-ui="kit"] .new-target-row { position: absolute; left: 4px; bottom: 4px; margin: 0; }
-html[data-ui="kit"] .new-target { height: 26px; border: 0; background: transparent; font-size: 14px; color: var(--kit-soft); border-radius: 6px; }
+html[data-ui="kit"] .new-target-row { position: absolute; left: 4px; bottom: 4px; margin: 0; max-width: calc(100% - 210px); }
+html[data-ui="kit"] .new-target-row:focus-within { z-index: 2; }
+html[data-ui="kit"] .new-target { max-width: min(320px, 100%); min-width: 0; height: 26px; border: 0; background: transparent; font-size: 14px; color: var(--kit-soft); border-radius: 6px; }
 html[data-ui="kit"] .new-target:hover:not(:disabled), html[data-ui="kit"] .new-target[aria-expanded="true"] { background: var(--kit-select); color: var(--kit-text); }
 html[data-ui="kit"] .kit-settings[hidden], html[data-ui="kit"] .kit-settings .select-button[hidden] { display: none; }
 /* The row sits low, 4px under the pill and 4px above the area's edge: an invisible pad fills both
@@ -254,7 +255,7 @@ html[data-ui="kit"] details.kit-notice summary { display: inline-flex; align-ite
 html[data-ui="kit"] details.kit-notice summary::-webkit-details-marker { display: none; }
 html[data-ui="kit"] details.kit-notice summary svg { width: 14px; height: 14px; transition: transform 0.15s; }
 html[data-ui="kit"] details.kit-notice[open] summary svg { transform: rotate(90deg); }
-html[data-ui="kit"] details.kit-notice p { margin: 6px 0 0; white-space: pre-wrap; }
+html[data-ui="kit"] details.kit-notice p { margin: 6px 0 0; white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
 
 /* Times: Claude "3 minutes ago" beside copy, Antigravity "2d ago" before it; under a person's
    message on hover. */
@@ -290,7 +291,7 @@ html[data-ui="kit"] .kit-diff-head { padding: 10px 14px; font-weight: 500; color
 html[data-ui="kit"] .kit-diff ul { list-style: none; margin: 0; padding: 0; }
 html[data-ui="kit"] .kit-diff li { display: flex; align-items: center; gap: 12px; padding: 7px 14px; border-top: 1px solid var(--kit-card-line); }
 html[data-ui="kit"] .kit-diff-file { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--kit-mono); font-size: 13px; }
-html[data-ui="kit"] .kit-diff-count { display: inline-flex; gap: 6px; font-family: var(--kit-mono); font-size: 12px; }
+html[data-ui="kit"] .kit-diff-count { display: inline-flex; gap: 6px; font-family: var(--kit-mono); font-size: 12px; flex: none; white-space: nowrap; }
 html[data-ui="kit"] .kit-diff ins { color: #1a7f37; text-decoration: none; }
 html[data-ui="kit"] .kit-diff del { color: var(--kit-red); text-decoration: none; }
 html[data-ui="kit"] .kit-diff-more > summary { padding: 8px 14px; border-top: 1px solid var(--kit-card-line); color: var(--kit-muted); cursor: pointer; list-style: none; }

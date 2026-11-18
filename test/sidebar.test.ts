@@ -14,7 +14,7 @@ const storage = () => { const data = new Map<string, string>(); return { getItem
 const session = (id: string, extra: object = {}) => ({ id, title: id, updatedAt: '2026-01-01T00:00:00Z', cwd: '', metadata: {}, ...extra });
 
 test('sidebar puts sessions under their project, projectless ones under chats, children under parents', async () => {
-  const { organize, projectChoices } = await import('../src/client/js/sidebar.js');
+  const { organize, projectChoices, repoKey } = await import('../src/client/js/sidebar.js');
   const sessions = [
     session('a', { cwd: '/w/app', metadata: { group: { id: 'p1', name: 'App' } } }),
     session('kid', { cwd: '/w/app', metadata: { group: { id: 'p1', name: 'App' }, parentId: 'a' } }),
@@ -28,7 +28,9 @@ test('sidebar puts sessions under their project, projectless ones under chats, c
   assert.deepEqual(tree.chats.map(item => item.session.id), ['b', 'd']);
   assert.deepEqual(projectChoices(sessions, []).map(item => item.cwd), ['/w/app', '/w/lib']);
   const winTree = organize([session('w1', { cwd: 'd:\\Work\\App' }), session('w2', { cwd: 'D:\\Work\\App\\' })]);
-  assert.deepEqual(winTree.projects.map(item => [item.id, item.name, item.items.length]), [['repo:d:\\Work\\App', 'App', 2]]);
+  assert.deepEqual(winTree.projects.map(item => [item.id, item.name, item.items.length]), [['repo:d:/Work/App', 'App', 2]]);
+  assert.equal(repoKey('D:/Work/App/'), repoKey('d:\\Work\\App\\'));
+  assert.equal(repoKey('C:\\'), 'repo:c:/');
 });
 
 test('projects start folded, remember being opened, and long lists fold behind "show more"', async () => {
@@ -70,8 +72,9 @@ test('"最近" lists every chat newest first, project ones tagged; a search show
   assert.equal(recentRows(`s${CHAT_ROWS + 4}`), CHAT_ROWS + 5);
 });
 
-test('Codex threads resolve to the desktop project, a project root, or no project', () => {
+test('Codex threads resolve to the desktop project, a project root, or no project', (t) => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   fs.writeFileSync(path.join(home, '.codex-global-state.json'), JSON.stringify({
     'app-server-project-id-by-legacy-project-id-by-host': { local: { old1: 'P1', old2: 'P2' } },
     'thread-project-assignments': { t1: { projectKind: 'local', projectId: 'old2' }, gone: { projectId: 'deleted' } },
@@ -91,8 +94,9 @@ test('Codex threads resolve to the desktop project, a project root, or no projec
   assert.equal(new CodexProjects({ codexHome: path.join(home, 'missing') }).index([]).resolve({ id: 'x', cwd: '/w' }), null);
 });
 
-test('Codex lists every page of threads once, each with its project', async () => {
+test('Codex lists every page of threads once, each with its project', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const bridge = new CodexBridge({ codexBin: null, codexHome: home }); bridge.isReady = true;
   const calls: Array<[string, unknown]> = [];
   bridge.send = async (method, params) => {
@@ -151,12 +155,18 @@ test('what the server reports reads naturally in English, names and reasons incl
   assert.match(english('这一轮没法插进去（连不上 Codex 桌面版），消息已排队'), /^Couldn't reach the current turn \(Can't reach Codex's desktop app\), so your message is queued$/);
   assert.match(english('暂时无法读取额度：timeout'), /right now: timeout$/);
   assert.equal(english('some engine text'), 'some engine text'); assert.equal(english(''), '');
+  assert.equal(english('应用没有在运行'), 'The app is not running');
+  assert.equal(english('没有找到输入框（profile 的 composer）'), 'Could not find the message box (composer in profile)');
+  assert.equal(english('输入框填不进文字'), 'Could not enter text into the message box');
+  assert.equal(english('没有找到停止控件，也按不到 Esc'), 'Could not find the stop button or press Esc');
+  assert.equal(english('这个动作（send）的 Windows 支持还没写好'), 'Windows support for "send" is not implemented yet');
+  assert.equal(english('profile 里没有 send 的认法'), 'No selector for send in the profile');
   // Every text the server or an adapter can report has an entry (prompts sent to the AI aside).
   const root = path.join(__dirname, '..'), known = new Set(reportTexts()), missing: string[] = [];
   const toAi = /^(请查看并分析附件|用户在工作台拒绝了这个操作|（图片或附件）|（图片）|你发送的图片|新建聊天|新会话|Antigravity 会话|模型|其他|截图|5 小时|每周)$/;
-  const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap(item => item.isDirectory() ? walk(path.join(dir, item.name)) : /\.(js|ts|swift)$/.test(item.name) && !item.name.endsWith('.d.ts') ? [path.join(dir, item.name)] : []);
+  const walk = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap(item => item.isDirectory() ? (item.name === 'bin' || item.name === 'obj' ? [] : walk(path.join(dir, item.name))) : /\.(js|ts|swift|cs)$/.test(item.name) && !item.name.endsWith('.d.ts') ? [path.join(dir, item.name)] : []);
   const serverFiles = walk(path.join(root, 'src/server'));
-  assert.ok(serverFiles.some(file => /server\.[jt]s$/.test(file)) && serverFiles.length >= 35, 'the server sources are found');
+  assert.ok(serverFiles.some(file => /server\.[jt]s$/.test(file)) && serverFiles.some(file => file.endsWith('Program.cs')) && serverFiles.length >= 35, 'the server sources are found');
   for (const file of serverFiles) {
     for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
       if (/^\s*(\/\/|\*)/.test(line) || /console\.(log|error)/.test(line)) continue;

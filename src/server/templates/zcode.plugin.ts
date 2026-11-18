@@ -1,3 +1,5 @@
+import os from 'node:os';
+import path from 'node:path';
 import { appPlaces, firstExisting } from '../services/app-assets.js';
 import type { PluginAbout, PluginSetup } from '../../shared/contract.js';
 // A template for the ZCode desktop app (Electron, D:\Zcode or %LOCALAPPDATA%\Programs\Zcode),
@@ -11,8 +13,8 @@ const IDENTITY = { id: 'zcode', label: 'ZCode', description: 'ZCode desktop', pr
 // Hidden until someone asks for it (BRIDGE_ZCODE_PREVIEW=1): a template with no engine behind
 // it would otherwise sit in the rail looking available.
 const preview = (): boolean => process.env.BRIDGE_ZCODE_PREVIEW === '1';
-const WINDOWS_ASAR = `${process.env.LOCALAPPDATA || ''}\\Programs\\Zcode\\resources\\app.asar`;
-const DATA_HOME = `${process.env.USERPROFILE || process.env.HOME || ''}\\.zcode`;
+const WINDOWS_ASAR = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Zcode', 'resources', 'app.asar');
+const DATA_HOME = path.join(process.env.USERPROFILE || process.env.HOME || os.homedir(), '.zcode');
 export const about: PluginAbout = { ...IDENTITY,
   detect: config => preview() ? firstExisting([
     ...appPlaces(config.zcodeAppAsar || WINDOWS_ASAR),

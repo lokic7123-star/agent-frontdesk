@@ -1,7 +1,8 @@
 # ZCode / WorkBuddy 接入分析（二期准备）
 
-一期交付：`src/server/templates/zcode.plugin.ts`（接入模板，`BRIDGE_ZCODE_PREVIEW=1` 时
-才在侧栏出现）+ 本文。目标：二期照本文把真 bridge 填进模板，走 `src/shared/contract.ts`
+一期交付：`src/server/templates/zcode.plugin.ts`（接入模板，默认留在 `templates/` 中不会被 `PluginHost`
+加载；需先复制到 `src/server/plugins/zcode.plugin.ts` 且设置 `BRIDGE_ZCODE_PREVIEW=1`
+才会在侧栏出现）+ 本文。目标：二期照本文把真 bridge 填进插件，走 `src/shared/contract.ts`
 单文件契约，页面共用侧栏、对话、输入框与文件预览。
 
 ## 一、本机已核实的事实（2026-11-18）
@@ -9,7 +10,7 @@
 | 项 | 事实 |
 | --- | --- |
 | 应用本体 | `D:\Zcode\ZCode.exe`（Electron；`resources\app.asar` 在旁） |
-| 数据目录 | `C:\Users\LoKi\.zcode` |
+| 数据目录 | `%USERPROFILE%\.zcode` |
 | 会话（CLI 子代理） | `~/.zcode/cli/agents/sess_<uuid>/agent_<uuid>/{metadata.json, output.txt, task.output}`；metadata 含 agentId、childSessionId、createdAt、cwd（Windows 路径）、description、metadataFile |
 | 应用状态 | `~/.zcode/v2/`：bot-config.v3.json、bot-state.v2/v3.json、credentials.json、config.json、logs/<日期>.log、tasks-index.sqlite(+wal/shm) |
 | 工作区 | `~/.zcode/workspace/<ts-uuid>/`（每会话工作目录） |
@@ -42,8 +43,10 @@
    `interrupt/steer/observe/usage` 按能力开关；全部窄化自 `unknown`（`shared/guards.ts`）。
 3. 写 `src/server/native/profiles/zcode.json`（若走 UIA）：先用驱动 `inspect` 导出真
    实控件树再写定位器，`probe` 验证每个 key 唯一命中。
-4. 把 `templates/zcode.plugin.ts` 的 setup 换成真 bridge（照 antigravity.plugin.ts 的
-   registerEngine 形状），去掉 `BRIDGE_ZCODE_PREVIEW` 门控。
+4. 将 `src/server/templates/zcode.plugin.ts` 复制到 `src/server/plugins/zcode.plugin.ts`
+   （`PluginHost.discover()` 只扫描 `plugins/`，不读取 `templates/`；若仅需在侧栏测试占位，
+   复制并设 `BRIDGE_ZCODE_PREVIEW=1` 后重新构建即可），再把 `setup` 换成真 bridge（照
+   `antigravity.plugin.ts` 的 `registerEngine` 形状），并去掉 `BRIDGE_ZCODE_PREVIEW` 门控。
 5. 验收：真机闭环（网页发消息 → 桌面端静默响应 → 网页回显）+ `npm test` 用替身覆盖
    新增解析逻辑 + 中文界面可用。
 

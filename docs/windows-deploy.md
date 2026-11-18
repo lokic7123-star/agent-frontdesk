@@ -28,29 +28,29 @@ npm start
 | 变量 | 用途 | Windows 默认（本仓库新增行为） |
 | --- | --- | --- |
 | `HOST` / `PORT` | 监听地址/端口 | `127.0.0.1` / `4100` |
-| `CODEX_BIN` | Codex 可执行文件 | 解析 MSIX 别名 `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe` 定位 `resources\codex.exe`，否则依次试 PATH 中的 `codex`、`codex.cmd`、`codex.exe` 及 `%LOCALAPPDATA%\Programs\ChatGPT\resources\codex-cli\bin\codex.exe` |
+| `CODEX_BIN` | Codex 可执行文件 | 解析 MSIX 别名 `%LOCALAPPDATA%\Microsoft\WindowsApps\chatgpt-desktop.exe` 定位 `resources\codex.exe`，否则依次试 PATH 中的 `codex.exe`、`codex.cmd`、`codex.bat`、`codex` 及 `%LOCALAPPDATA%\Programs\ChatGPT\resources\codex-cli\bin\codex.exe` |
 | `CODEX_HOME` | Codex 数据目录 | `~/.codex` |
 | `CODEX_IPC_PATH` | Codex 桌面版 IPC 端点（Windows） | `\\.\pipe\codex-ipc`（已从 `OpenAI.Codex` 应用核实） |
-| `CLAUDE_BIN` | Claude Code 可执行文件 | PATH 里的 `claude`/`claude.cmd`/`claude.exe`、`~/.local/bin/claude.exe`、`%APPDATA%\Claude\claude-code\` 下 |
+| `CLAUDE_BIN` | Claude Code 可执行文件 | PATH 里的 `claude.exe`/`claude.cmd`/`claude.bat`/`claude`、`~/.local/bin/claude.exe`、`%APPDATA%\Claude\claude-code\` 下（由插件传给 `ClaudeBridge`） |
 | `CLAUDE_HOME` | Claude Code 会话目录 | `~/.claude` |
 | `CLAUDE_DESKTOP_HOME` | Claude 桌面应用数据目录 | `%APPDATA%\Claude` |
 | `CLAUDE_APP_ASAR` | Claude 桌面应用 asar | `%LOCALAPPDATA%\Programs\Claude\resources\app.asar` |
 | `CHATGPT_APP_ASAR` | ChatGPT / Codex 桌面应用 asar | `%LOCALAPPDATA%\Programs\ChatGPT\resources\app.asar` 或 MSIX `OpenAI.Codex` 包内 `app\resources\app.asar` |
 | `ANTIGRAVITY_HOME` | Antigravity 数据目录 | `~/.gemini/antigravity` |
-| `ANTIGRAVITY_APP_ICON` | Antigravity 图标来源 | `%LOCALAPPDATA%\Programs\antigravity\Antigravity.exe` |
-| `AGENTAPI_BIN` | Antigravity 命令行工具 | `~/.gemini/antigravity/bin/agentapi.bat`（本机核实存在的就是 .bat） |
+| `ANTIGRAVITY_APP_ICON` | Antigravity 图标来源 | `%LOCALAPPDATA%\Programs\antigravity\resources\app.asar` |
+| `AGENTAPI_BIN` | Antigravity 命令行工具 | `~/.gemini/antigravity/bin/agentapi.exe`、`.bat`（本机核实为 `agentapi.bat`，通过 `winSpawnArgs` 调用）及 PATH 中的 `agentapi.*` |
 | `ZCODE_APP_ASAR` / `ZCODE_HOME` | ZCode 模板探测用 | `%LOCALAPPDATA%\Programs\Zcode\resources\app.asar`（或 `D:\Zcode\resources\app.asar`） / `~/.zcode` |
-| `BRIDGE_ZCODE_PREVIEW` | `1` 时侧栏出现 ZCode 模板项（未实现引擎，启用会给出二期提示） | 不显示 |
+| `BRIDGE_ZCODE_PREVIEW` | 模板位于 `src/server/templates/zcode.plugin.ts`（默认不被插件宿主扫描加载）；复制到 `src/server/plugins/zcode.plugin.ts` 且设为 `1` 时才在侧栏出现（未实现引擎，启用会给出二期提示） | 不加载 |
 | `BRIDGE_DEFAULT_CWD` / `BRIDGE_UPLOADS_DIR` / `BRIDGE_SETTINGS_FILE` / `BRIDGE_PLUGIN_DIR` / `BRIDGE_MODEL_CATALOG` / `BRIDGE_DICTATION_ENGINE` / `HTTPS_PORT` | 同上游 README | 同上游 |
 
 ## 各桌面应用在 Windows 上的现状（诚实清单）
 
 | 应用 | 读历史 | 发消息 | 状态 |
 | --- | --- | --- | --- |
-| Antigravity | 本机数据库 + 语言服务器（`hub_<port>.json` 发现，Windows 原样可用） | 语言服务器直连（协议，已真机验证模型/配额/历史/预览） | ✅ 读通道、配额、历史、文件预览、前端展示全通；实机网页发消息待交互窗口确认 |
-| Codex | 桌面版的 app-server（支持 MSIX `OpenAI.Codex`） | 消息队列 + 窗口间 IPC（`\\.\pipe\codex-ipc`）+ `codex://threads/wake/` + UIA | ✅ 读历史、模型、Plus 额度、图标/精灵图、ChatGPT 模式实机验证通过；发消息唤醒待交互桌面实测 |
-| Claude | Claude Code 会话转录 + 桌面索引 | UIA 引擎（win32 上 dotnet 编译的 uia-driver） | 桌面版装机后启用；凭据读 `~/.claude/.credentials.json`（Windows 无 keychain） |
-| ZCode / WorkBuddy | 二期（见 docs/zcode-integration.md） | 二期 | 模板就绪，`BRIDGE_ZCODE_PREVIEW=1` 可见 |
+| Antigravity | 本机数据库 + 语言服务器（`hub_<port>.json` 发现，含进程名 PID 校验，Windows 原样可用） | 语言服务器直连（协议，已真机验证模型/配额/历史/预览） | ✅ 读通道、配额、历史、文件预览、前端展示全通；实机网页发消息待交互窗口确认 |
+| Codex | 桌面版的 app-server（支持 MSIX `OpenAI.Codex`） | 消息队列 + 窗口间 IPC（`\\.\pipe\codex-ipc`）+ `codex://threads/wake/` + UIA（`Program.cs` 目前实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`；对 `new`、模型/推理/模式切换、`steer`、卡片、`open-file`、`show-session`、`chat-*` 返回 `unsupported`） | ✅ 读历史、模型、Plus 额度、图标/精灵图、ChatGPT 模式实机验证通过；纯文本发消息与唤醒待交互桌面实测（UIA 新建/切模型待补） |
+| Claude | Claude Code 会话转录 + 桌面索引 | UIA 引擎（win32 上 dotnet 编译的 `uia-driver`；`Program.cs` 目前实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`，对 `new`、模型/推理/权限切换、`steer`、卡片、`open-file`、`show-session`、`chat-*` 返回 `unsupported`） | 桌面版装机后启用；已接通 `CLAUDE_BIN` 传递；凭据读 `~/.claude/.credentials.json`（Windows 无 keychain） |
+| ZCode / WorkBuddy | 二期（见 docs/zcode-integration.md） | 二期 | 模板位于 `src/server/templates/zcode.plugin.ts`，需复制到 `src/server/plugins/` 并设 `BRIDGE_ZCODE_PREVIEW=1` 后才会在侧栏加载 |
 
 ## 常见问题
 

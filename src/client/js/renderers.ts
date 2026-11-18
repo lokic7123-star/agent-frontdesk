@@ -128,14 +128,14 @@ const decodeSafe = (s: string) => { try { return decodeURIComponent(s); } catch 
 export function filePathOf(value: unknown, { link = false } = {}): string {
   const raw = String(value || '').trim();
   const stripped = /^file:\/\//i.test(raw)
-    ? decodeSafe(raw.replace(/^file:\/\/\/?(?=[a-zA-Z]:[\\/])|^file:\/\//i, ''))
+    ? decodeSafe(raw).replace(/^file:\/\/(?:localhost(?=\/))?/i, '').replace(/^\/+(?=[a-zA-Z]:[\\/])/, '')
     : raw;
   const text = /^[a-zA-Z]:[\\/]/.test(stripped) || (stripped.includes('\\') && !stripped.includes(' '))
     ? stripped.replace(/\\/g, '/')
     : stripped;
   const bare = text.replace(/:(\d+)(:\d+)?$/, '');
   if (!text || text.length > 400 || /:\/\//.test(bare) || /^[a-z]{2,}:/i.test(bare)) return '';
-  if (link && /^[a-zA-Z]:\/[^\r\n\0]+$/.test(bare)) return text;
+  if ((link || FILE_EXT.test(bare)) && /^[a-zA-Z]:\/[^\r\n\0]+$/.test(bare)) return text;
   if (/\s/.test(bare) || !PATH_SHAPE.test(bare) || /^\.+\/?$/.test(bare)) return '';
   if (link) return text;
   if (bare.endsWith('/')) return LOCAL_ROOT.test(bare) ? text : '';

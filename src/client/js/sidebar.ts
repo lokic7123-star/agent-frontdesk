@@ -22,7 +22,11 @@ import type { StoreLike } from './navigation.js';
 //                                            Codex thread is under its project in "Codex" and in
 //                                            Recents in "ChatGPT"); rank orders that mode's list
 const basename = (value: unknown): string => String(value || '').split(/[\\/]/).filter(Boolean).at(-1) || '';
-const repoKey = (cwd: string): string => cwd.replace(/^[a-z]:(?=[\\/])/i, d => d.toLowerCase()).replace(/[\\/]+$/, '');
+export const repoKey = (cwd: unknown): string => {
+  const norm = String(cwd || '').replace(/\\/g, '/').replace(/^([A-Z]):/, (_, d: string) => `${d.toLowerCase()}:`);
+  const s = /^[a-z]:\/+$/i.test(norm) ? `${norm.slice(0, 2)}/` : /^\/+$/.test(norm) ? '/' : norm.replace(/\/+$/, '');
+  return s ? `repo:${s}` : '';
+};
 const ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escape = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, char => ENTITIES[char] ?? char);
 // Date.parse(undefined) is NaN, which reads as 0, as before.
@@ -79,7 +83,7 @@ function groupOf(session: SideSession): { id: string; name: string; cwd: string 
   const group = session.metadata?.group;
   if (group === null) return null;
   if (group?.id) return { id: String(group.id), name: String(group.name || basename(group.cwd) || group.id), cwd: group.cwd || '' };
-  return session.cwd ? { id: `repo:${repoKey(session.cwd)}`, name: basename(session.cwd) || session.cwd, cwd: session.cwd } : null;
+  return session.cwd ? { id: repoKey(session.cwd), name: basename(session.cwd) || session.cwd, cwd: session.cwd } : null;
 }
 
 // { projects: [{ id, name, cwd, items: [{ session, children }] }], chats: [{ session, children }],

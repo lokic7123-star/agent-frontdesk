@@ -8,8 +8,9 @@ import { must, withStatus } from './support.js';
 import * as __services_file_preview from '../src/server/services/file-preview.js';
 import * as __services_reveal from '../src/server/services/reveal.js';
 
-test('file previews stay inside the session folder and never show secrets or binaries', () => {
+test('file previews stay inside the session folder and never show secrets or binaries', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const cwd = path.join(root, 'project'), outside = path.join(root, 'outside.txt');
   fs.mkdirSync(path.join(cwd, 'lib'), { recursive: true }); fs.mkdirSync(path.join(cwd, '.git'));
   fs.writeFileSync(path.join(cwd, 'lib', 'a.js'), 'one\ntwo\n');
@@ -18,11 +19,17 @@ test('file previews stay inside the session folder and never show secrets or bin
   fs.writeFileSync(path.join(cwd, 'blob.bin'), Buffer.from([1, 0, 2]));
   fs.writeFileSync(path.join(cwd, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   fs.writeFileSync(outside, 'not yours');
-  // Creating a symlink needs Developer Mode or admin on Windows; the escape-by-symlink check
-  // only runs where the link can be made (the realpath refusal itself is platform-neutral).
+  // Creating a file symlink needs Developer Mode or admin on Windows; fall back to a directory
+  // junction (which works without elevation) so symlink escape stays exercised on Windows.
   let linked = true;
   try { fs.symlinkSync(outside, path.join(cwd, 'escape.txt')); } catch (err) {
-    if (process.platform === 'win32' && (err as NodeJS.ErrnoException).code === 'EPERM') linked = false; else throw err;
+    if (process.platform === 'win32' && (err as NodeJS.ErrnoException).code === 'EPERM') {
+      linked = false;
+      const outsideDir = path.join(root, 'outside-dir');
+      fs.mkdirSync(outsideDir);
+      fs.writeFileSync(path.join(outsideDir, 'outside.txt'), 'not yours');
+      fs.symlinkSync(outsideDir, path.join(cwd, 'escapedir'), 'junction');
+    } else throw err;
   }
 
   assert.deepEqual(previewFile(cwd, 'lib/a.js:2'), { path: 'lib/a.js', size: 8, text: 'one\ntwo\n', truncated: false });
@@ -39,6 +46,7 @@ test('file previews stay inside the session folder and never show secrets or bin
   refused(outside, 403);
   refused('../outside.txt', 403);
   if (linked) refused('escape.txt', 403);
+  else refused('escapedir/outside.txt', 403);
   refused('.env', 403);
   refused('.git/config', 403);
   refused('blob.bin', 415);
@@ -46,10 +54,11 @@ test('file previews stay inside the session folder and never show secrets or bin
   assert.throws(() => previewFile('', 'lib/a.js'), withStatus(404));
 });
 
-test('"show in Finder" uses the same folder check as the preview, and the system file manager', async () => {
+test('"show in Finder" uses the same folder check as the preview, and the system file manager', async t => {
   const { resolveFile } = __services_file_preview;
   const { revealFile, fileManager, command } = __services_reveal;
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'reveal-')));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const cwd = path.join(root, 'project');
   fs.mkdirSync(path.join(cwd, 'lib'), { recursive: true }); fs.writeFileSync(path.join(cwd, 'lib', 'a.js'), '');
   fs.writeFileSync(path.join(root, 'outside.txt'), '');
@@ -73,8 +82,9 @@ test('"show in Finder" uses the same folder check as the preview, and the system
   await revealFile('C:\\a.js', { platform: 'win32', runner: (bin, args, options, done) => done(Object.assign(new Error('1'), { code: 1 })) });
 });
 
-test('a folder the reply links to previews as its listing, and stays inside the session folder', () => {
+test('a folder the reply links to previews as its listing, and stays inside the session folder', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-dir-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const cwd = path.join(root, 'project');
   fs.mkdirSync(path.join(cwd, 'docs', 'old'), { recursive: true });
   fs.writeFileSync(path.join(cwd, 'docs', 'guide.md'), '# hi');
@@ -84,8 +94,9 @@ test('a folder the reply links to previews as its listing, and stays inside the 
   assert.throws(() => previewFile(cwd, root), withStatus(403));
 });
 
-test('an engine may name folders it keeps for a chat; files there can be read, nothing else outside', () => {
+test('an engine may name folders it keeps for a chat; files there can be read, nothing else outside', (t) => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'preview-roots-')));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const brain = path.join(root, 'brain', 'c1');
   fs.mkdirSync(brain, { recursive: true }); fs.writeFileSync(path.join(brain, 'guide.md'), '# guide');
   fs.writeFileSync(path.join(root, 'other.md'), 'no');
@@ -96,13 +107,14 @@ test('an engine may name folders it keeps for a chat; files there can be read, n
   assert.throws(() => previewFile('', 'guide.md'), withStatus(404));
 });
 
-test("an app's icon is read from its .icns as the PNG nearest the asked size, and a missing or foreign file gives none", async () => {
+test("an app's icon is read from its .icns as the PNG nearest the asked size, and a missing or foreign file gives none", async t => {
   const { readAppIcon } = await import('../src/server/services/app-assets.js');
   const png = (width: number) => { const out = Buffer.alloc(32); Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(out); out.writeUInt32BE(width, 16); return out; };
   const entry = (type: string, body: Buffer) => { const head = Buffer.alloc(8); head.write(type, 'latin1'); head.writeUInt32BE(body.length + 8, 4); return Buffer.concat([head, body]); };
   const entries = Buffer.concat([entry('TOC ', Buffer.alloc(16)), entry('ic07', png(128)), entry('ic08', png(256)), entry('ic10', png(1024))]);
   const head = Buffer.alloc(8); head.write('icns', 'latin1'); head.writeUInt32BE(entries.length + 8, 4);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'frontdesk-icon-')), file = path.join(dir, 'app.icns');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   try {
     fs.writeFileSync(file, Buffer.concat([head, entries]));
     const icon = readAppIcon(file);
@@ -113,4 +125,11 @@ test("an app's icon is read from its .icns as the PNG nearest the asked size, an
     fs.writeFileSync(file, 'not an icon');
     assert.equal(readAppIcon(file), null);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('filePathOf handles Windows file:/// URIs with encoded colons and CJK inline paths', async () => {
+  Reflect.set(globalThis, 'window', Reflect.get(globalThis, 'window') || {});
+  const { filePathOf } = await import('../src/client/js/renderers.js');
+  assert.equal(filePathOf('file:///c%3A/Users/me/app.ts'), 'c:/Users/me/app.ts');
+  assert.equal(filePathOf('D:\\总数据库\\HANDOFF.md', { link: false }), 'D:/总数据库/HANDOFF.md');
 });

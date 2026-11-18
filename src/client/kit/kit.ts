@@ -26,7 +26,11 @@ const engineId = () => document.documentElement.dataset.engine || '';
 // "对话的样子"); left out, a field reads as the Claude desktop does. The kit never asks which engine.
 const look = () => state.look || {};
 const lookOf = (provider: { look?: Look | undefined } | null | undefined) => { state.look = provider?.look && typeof provider.look === 'object' ? provider.look : {}; };
-const basename = (value: unknown): string => String(value || '').split('/').filter(Boolean).at(-1) || '';
+const basename = (value: unknown): string => String(value || '').split(/[\\/]/).filter(Boolean).at(-1) || '';
+const normPath = (value: unknown): string => {
+  const s = String(value || '').replace(/\\/g, '/').replace(/^([A-Z]):/, (_, d: string) => `${d.toLowerCase()}:`);
+  return /^[a-z]:\/+$/i.test(s) ? `${s.slice(0, 2)}/` : /^\/+$/.test(s) ? '/' : s.replace(/\/+$/, '');
+};
 const plural = (count: number, one: string, many: string) => count === 1 ? one : `${count} ${many}`;
 
 // What a tool did, in the desktop's words.
@@ -228,8 +232,12 @@ function turnElapsed(turn: PageTurn, active: boolean): number {
 // Codex's turn diff card: "Edited 3 files", one row per file with its added and removed lines.
 interface Change { path: string; added: number; removed: number }
 function diffCard(changes: Change[]): string {
-  const cwd = state.sessions.find(item => item.id === state.currentId)?.cwd || '';
-  const shown = (path: string) => cwd && path.startsWith(`${cwd}/`) ? path.slice(cwd.length + 1) : path;
+  const cwd = normPath(state.sessions.find(item => item.id === state.currentId)?.cwd || '');
+  const prefix = cwd ? (cwd.endsWith('/') ? cwd : `${cwd}/`) : '';
+  const shown = (path: string) => {
+    const clean = normPath(path);
+    return prefix && clean.startsWith(prefix) ? clean.slice(prefix.length) : path;
+  };
   const row = (change: Change) => `<li><a class="file-link kit-diff-file" href="#" data-file-path="${escape(change.path)}" title="${escape(change.path)}">${escape(shown(change.path))}</a><span class="kit-diff-count">${change.added ? `<ins>+${change.added}</ins>` : ''}${change.removed ? `<del>-${change.removed}</del>` : ''}</span></li>`;
   const title = changes.length === 1 ? `Edited ${basename(changes[0]?.path)}` : `Edited ${changes.length} files`;
   const head = changes.slice(0, 4), rest = changes.slice(4);
@@ -238,8 +246,9 @@ function diffCard(changes: Change[]): string {
 function turnChanges(activities: Activity[]): Change[] {
   const byPath = new Map<string, Change>();
   for (const item of activities) for (const change of item.changes || []) {
-    const entry = byPath.get(change.path) || { path: change.path, added: 0, removed: 0 };
-    entry.added += change.added || 0; entry.removed += change.removed || 0; byPath.set(change.path, entry);
+    const key = normPath(change.path);
+    const entry = byPath.get(key) || { path: change.path, added: 0, removed: 0 };
+    entry.added += change.added || 0; entry.removed += change.removed || 0; byPath.set(key, entry);
   }
   return [...byPath.values()];
 }
@@ -306,8 +315,8 @@ function renderKitTurn(turn: PageTurn, context: Partial<TurnContext> = {}): stri
     else if (!active && answerAt === 0 && took && style.workingLive) parts.unshift(`<p class="kit-worked">Worked for ${elapsed(took)}</p>`);
   }
   const changes = style.diffCard && !active ? turnChanges(activities) : [];
-  const changed = new Set(changes.map(item => item.path));
-  const artifacts = (turn.artifacts || []).filter(item => !changed.has(item.path));
+  const changed = new Set(changes.map(item => normPath(item.path)).filter(Boolean));
+  const artifacts = (turn.artifacts || []).filter(item => { const p = normPath(item.path); return !p || !changed.has(p); });
   const thinking = active && !activities.some(item => item.status === 'running');
   // renderers.ts registers 'artifact' itself, so the fallback is always there.
   const artifact: Renderers['artifact'] = item => (renderers.get(`artifact:${item.kind}`) || renderers.get('artifact') || (() => ''))(item);

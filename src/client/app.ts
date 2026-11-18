@@ -11,7 +11,7 @@ import { nativeDictation, browserDictation, VoiceUnavailable } from './js/dictat
 import { dictationOrder, AUTO_VOICE, BROWSER_VOICE } from '../shared/dictation.js';
 import { escape, icon, hydrateIcons, registerRenderer, renderers, markdown, character, quotaMeter, quotaCard, speechLine, windowName, onRenderers, needRenderer } from './js/renderers.js';
 import { enhanceSelect, showMenu } from './js/menu.js';
-import { renderSidebar, projectChoices, SidebarPrefs, clampSidebarWidth, spacesOf, homeSpace, shownSpace, spaceOfItem, isInSpace, inSpace, renderSpaceSwitch, spaceMenuItems } from './js/sidebar.js';
+import { renderSidebar, projectChoices, repoKey, SidebarPrefs, clampSidebarWidth, spacesOf, homeSpace, shownSpace, spaceOfItem, isInSpace, inSpace, renderSpaceSwitch, spaceMenuItems } from './js/sidebar.js';
 import { avatarSvg, newAvatarSeed } from './js/avatar.js';
 import './js/diagrams.js';
 import { NewOptions } from './js/new-options.js';
@@ -484,7 +484,7 @@ function renderHeader() {
   const accent = engine()?.accent;
   if (accent) document.documentElement.style.setProperty('--engine-accent', accent); else document.documentElement.style.removeProperty('--engine-accent');
   $('session-title').textContent = state.session?.title || t('新建聊天');
-  $('session-cwd').textContent = state.session?.cwd?.split('/').filter(Boolean).at(-1) || '';
+  $('session-cwd').textContent = state.session?.cwd?.split(/[\\/]/).filter(Boolean).at(-1) || '';
   $('session-cwd').title = state.session?.cwd || '';
   $('engine-label').textContent = engine()?.label || '';
   // The sidebar's head says whose chats these are; the header's button names the app it opens.
@@ -560,14 +560,15 @@ function renderControls() {
   if ((capsOf().permissions === false) !== ($('permission').dataset.mode === 'off')) renderPermissions();
   setHTML($('run-state'), state.dictation ? `<span class="recording-dot" aria-hidden="true"></span>${state.dictation.stopping ? t('正在整理识别结果…') : `${t('正在听写 ·')} ${escape(source)} ${t('· 再点话筒结束，Esc 取消')}`}` : stopRequested ? t('正在停止…') : state.uploading ? t('正在上传附件…') : state.creating ? t('正在新建聊天…') : state.submitting ? t('正在发送…') : (active || desktopActive) ? `<span class="activity-spinner" aria-hidden="true"></span>${active?.approvals?.length ? t('等待操作批准') : active?.status === 'reconnecting' ? t('正在确认引擎状态') : t('正在执行')}${!canStop ? t(' · 请在桌面端停止任务') : ''}` : '');
   renderQueue();
-  $('composer-context').textContent = state.session?.cwd ? `${t('工作目录 ·')} ${state.session.cwd.split('/').filter(Boolean).at(-1)}` : t('任务由 {name} 执行', { name: engine()?.label || t('桌面引擎') });
+  $('composer-context').textContent = state.session?.cwd ? `${t('工作目录 ·')} ${state.session.cwd.split(/[\\/]/).filter(Boolean).at(-1)}` : t('任务由 {name} 执行', { name: engine()?.label || t('桌面引擎') });
   $('new-chat').disabled = !state.engines.length || !!noNewReason();
   renderNewTarget();
 }
 // A new chat is the empty composer itself, as in the desktop apps: pick the project it belongs
 // to under the composer, type, send. The session is created by that first message. An engine
 // whose desktop page asks for its own choices first (newOptions) has them as cards instead.
-const folderName = (path: string) => String(path || '').split('/').filter(Boolean).at(-1) || path || '';
+const folderName = (path: string) => String(path || '').split(/[\\/]/).filter(Boolean).at(-1) || path || '';
+const sameRepo = (a: string | undefined, b: string | undefined): boolean => { const ka = repoKey(a); return !!ka && ka === repoKey(b); };
 const newOptions = new NewOptions({ onChange: () => renderNewOptions() });
 // What a new chat's first message will run with: the settings the engine's desktop page shows
 // now, when it reports them (null: not known, so the menus name no model of their own).
@@ -587,7 +588,7 @@ function newTarget() {
   if (!capsOf().cwd || capsOf().newOptions) return null;
   const choices = newChoices();
   const cwd = newTargets[state.engine]?.cwd || '';
-  const project = choices.find(item => item.cwd === cwd);
+  const project = choices.find(item => sameRepo(item.cwd, cwd));
   return { cwd, project, name: project?.name || folderName(cwd), choices };
 }
 function setNewTarget(cwd: string): void {
@@ -605,9 +606,9 @@ function renderNewTarget() {
 }
 function pickNewTarget() {
   const target = newTarget(); if (!target) return;
-  const known = target.choices.some(item => item.cwd === target.cwd);
+  const known = target.choices.some(item => sameRepo(item.cwd, target.cwd));
   showMenu($('new-target'), [
-    ...target.choices.map(item => ({ group: t('项目'), value: item.cwd, label: item.name, description: item.cwd, selected: item.cwd === target.cwd })),
+    ...target.choices.map(item => ({ group: t('项目'), value: item.cwd, label: item.name, description: item.cwd, selected: sameRepo(item.cwd, target.cwd) })),
     ...(target.cwd && !known ? [{ group: t('其他'), value: target.cwd, label: folderName(target.cwd), description: target.cwd, selected: true }] : []),
     { group: t('其他'), value: '', label: t('不指定项目'), description: state.defaultCwd, selected: !target.cwd },
     { group: t('其他'), value: '\0custom', label: t('其他文件夹…') },
@@ -625,7 +626,7 @@ function newChat(project: { id: string; name: string; cwd?: string | undefined }
   newProject = newInMode() && project ? { engine: state.engine, space: spaceId(), id: project.id, name: project.name } : null;
   // Starting from inside a project (or from its "+") keeps the new chat in that project.
   const here = project?.cwd || state.session?.cwd;
-  if (here && caps.cwd && !caps.newOptions && (project || newChoices().some(item => item.cwd === here))) newTargets[state.engine] = { cwd: here };
+  if (here && caps.cwd && !caps.newOptions && (project || newChoices().some(item => sameRepo(item.cwd, here)))) newTargets[state.engine] = { cwd: here };
   // An engine whose desktop page asks for the folder itself has it picked there.
   newOptions.aim(project?.cwd && caps.newOptions && caps.newFolder ? { ...caps.newFolder, ...project, cwd: project.cwd, engine: state.engine } : null);
   // What was read and chosen last time shows at once; the desktop's page is read again behind it.
@@ -1073,7 +1074,10 @@ $('new-target').addEventListener('click', pickNewTarget);
 $('new-target-path').addEventListener('keydown', event => {
   if (!['Enter', 'Escape'].includes(event.key) || event.isComposing) return;
   event.preventDefault(); event.stopPropagation();
-  if (event.key === 'Enter') setNewTarget($('new-target-path').value.trim().replace(/(.)\/+$/, '$1'));
+  if (event.key === 'Enter') {
+    const trimmed = $('new-target-path').value.trim();
+    setNewTarget(/^[a-zA-Z]:[\\/]+$/.test(trimmed) ? trimmed.slice(0, 3) : trimmed.replace(/(.)[\\/]+$/, '$1'));
+  }
   $('new-target-path').hidden = true; $('new-target').hidden = false; $('new-target').focus();
 });
 $('new-target-path').addEventListener('blur', () => { $('new-target-path').hidden = true; $('new-target').hidden = false; });
@@ -1327,9 +1331,13 @@ matchMedia('(max-width:767px)').addEventListener('change', () => { document.body
 // The "+" after the dock: a prompt anyone can give their own desktop AI so it joins this
 // console the same way the existing engines do (see skills/add-desktop-engine).
 // The guide is written once, in English (an agent reads it, whatever language the person uses).
+const skillPath = (dir: string): string => {
+  const sep = dir.includes('\\') ? '\\' : '/';
+  return `${dir}${sep}skills${sep}add-desktop-engine${sep}SKILL.md`;
+};
 function onboardingPrompt() {
   if (language === 'en') return onboardingPromptEn();
-  const dir = state.projectDir || '<工作台项目目录>', skill = `${dir}/skills/add-desktop-engine/SKILL.md`;
+  const dir = state.projectDir || '<工作台项目目录>', skill = skillPath(dir);
   const joined = state.engines.map(item => item.label).join('、') || '无';
   return `你是我这台电脑上的桌面版 AI。请把你自己接入我本机的「Agent Frontdesk」统一工作台，做到和工作台里的 Claude、Codex 一样：我能在工作台里看你的历史、给你发消息、停止、插话、排队、改模型和推理强度、新建聊天、回答你的提问卡片，而这一切都由你的桌面版自己执行，桌面版里实时看得到。
 
@@ -1356,7 +1364,7 @@ function onboardingPrompt() {
 }
 // The same prompt for a person using Frontdesk in English; it points at the English guide.
 function onboardingPromptEn() {
-  const dir = state.projectDir || '<Frontdesk project folder>', skill = `${dir}/skills/add-desktop-engine/SKILL.md`;
+  const dir = state.projectDir || '<Frontdesk project folder>', skill = skillPath(dir);
   const joined = state.engines.map(item => item.label).join(', ') || 'none';
   return `You are the desktop AI on this computer. Please connect yourself to "Agent Frontdesk", the console on this machine, so that you can do everything Claude and Codex already do there: I can read your history in Frontdesk, send you messages, stop you, steer a running turn, queue messages, change the model and reasoning effort, start new chats and answer your question cards, while every bit of it is carried out by your own desktop app and shows up there live.
 
@@ -1400,7 +1408,8 @@ async function readCard(card: WrapUpCard): Promise<CardRead | { error: string }>
 function openOnboard(): void {
   for (const id of ['agents-dialog', 'settings-dialog'] as const) if ($(id).open) $(id).close();
   $('onboard-prompt').textContent = onboardingPrompt();
-  $('onboard-path').textContent = `${t('手册位置：')}${state.projectDir || ("<" + t('工作台项目目录') + ">")}/skills/add-desktop-engine/SKILL.md`;
+  $('onboard-path').textContent = `${t('手册位置：')}${skillPath(state.projectDir || `<${t('工作台项目目录')}>`)}`;
+  $('copy-skill-path').disabled = !state.projectDir;
   $('copy-onboard').textContent = t('复制提示词');
   $('onboard-dialog').showModal();
 }
@@ -1410,7 +1419,8 @@ $('copy-onboard').addEventListener('click', async () => {
   catch { const range = document.createRange(); range.selectNodeContents($('onboard-prompt')); getSelection()?.removeAllRanges(); getSelection()?.addRange(range); $('copy-onboard').textContent = t('已选中，按 ⌘C 复制'); }
 });
 $('copy-skill-path').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(`${state.projectDir}/skills/add-desktop-engine/SKILL.md`); $('copy-skill-path').textContent = t('已复制路径'); setTimeout(() => { $('copy-skill-path').textContent = t('复制手册路径'); }, 1600); } catch {}
+  if (!state.projectDir) return;
+  try { await navigator.clipboard.writeText(skillPath(state.projectDir)); $('copy-skill-path').textContent = t('已复制路径'); setTimeout(() => { $('copy-skill-path').textContent = t('复制手册路径'); }, 1600); } catch {}
 });
 
 // ---------- agents on and off ----------

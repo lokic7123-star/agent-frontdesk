@@ -6,7 +6,7 @@ import { get, list } from '../../shared/guards.js';
 export interface ToolSummary { type: string; summary: unknown; detail?: unknown; command?: unknown; paths?: unknown[] }
 export interface ToolRule { match: RegExp; map: (input: unknown, name: string) => ToolSummary }
 
-const short = (value: unknown) => String(value || '').split('/').filter(Boolean).slice(-2).join('/');
+const short = (value: unknown) => String(value || '').split(/[\\/]/).filter(Boolean).slice(-2).join('/');
 const fileOf = (input: unknown) => get(input, 'file_path') || get(input, 'path') || get(input, 'Path') || get(input, 'TargetFile') || get(input, 'AbsolutePath') || get(input, 'notebook_path') || '';
 const rules: ToolRule[] = [
   { match: /^mcp__/, map: (input, name) => { const [, server = '', ...tool] = name.split('__'); return { type: 'tool_call', summary: `${tool.join('_').replace(/_/g, ' ')} · ${server.replace(/_/g, ' ')}`, detail: JSON.stringify(input, null, 2) }; } },

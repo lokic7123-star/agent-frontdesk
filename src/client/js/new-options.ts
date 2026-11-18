@@ -23,7 +23,7 @@ const KEEP_MS = 10 * 60_000;
 const OPTIONS_MS = 60_000;
 /** One engine's page as the console last had it (see NewOptions.open). */
 interface Kept { controls: NewControl[] | null; settings: DesktopSettings | null; settled: Map<string, string>; error: string; at: number }
-const basename = (path: unknown): string => String(path || '').split('/').filter(Boolean).at(-1) || '';
+const basename = (path: unknown): string => String(path || '').split(/[\\/]/).filter(Boolean).at(-1) || '';
 
 /** Where a project's "+" asks the new chat to go (see aim). */
 export interface NewTarget extends NewFolder { engine: string; id?: string; name?: string; cwd: string }
@@ -231,7 +231,7 @@ export class NewOptions {
   }
   shown(control: NewControl): string {
     if (control.kind === 'toggle') return t(control.value === 'on' ? '开' : '关');
-    return control.value.includes('/') ? control.value.split('/').filter(Boolean).at(-1) || control.value : control.value;
+    return /[\\/]/.test(control.value) ? control.value.split(/[\\/]/).filter(Boolean).at(-1) || control.value : control.value;
   }
   card(control: NewControl, step: number, reload = ''): string {
     const busy = this.busy === control.label;

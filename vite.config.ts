@@ -12,7 +12,11 @@ const backend = { target: `http://127.0.0.1:${api}`, ws: false };
 export default defineConfig({
   root: 'src/client',
   publicDir: 'public',
-  plugins: [{ name: 'clean-dist-server', apply: 'build', buildStart() { fs.rmSync(path.resolve(import.meta.dirname, 'dist/server'), { recursive: true, force: true }); } }],
+  plugins: [{ name: 'clean-dist-server', apply: 'build', buildStart() {
+    for (const dir of ['dist/server', 'dist/shared']) {
+      fs.rmSync(path.resolve(import.meta.dirname, dir), { recursive: true, force: true });
+    }
+  } }],
   build: { outDir: '../../dist/public', emptyOutDir: true, target: 'es2022', chunkSizeWarningLimit: 4096 },
   server: { host: process.env.HOST || '127.0.0.1', port, strictPort: true, proxy: { '/api': backend, '/uploads': backend } },
   preview: { port },

@@ -36,7 +36,7 @@ function resolveFile(cwd: string, requested: unknown, roots: string[] = []): { f
   }
   // `~/…` is the home folder, as the agent's shell reads it (HOME first: Git Bash and the like
   // set it even where os.homedir() would look elsewhere, e.g. USERPROFILE on Windows).
-  const named = /^~(\/|$)/.test(asked) ? path.join(process.env.HOME || os.homedir(), asked.slice(1)) : asked;
+  const named = /^~([\\/]|$)/.test(asked) ? path.join(process.env.HOME || os.homedir(), asked.slice(1)) : asked;
   if (!asked || asked.length > 1024 || asked.includes('\0')) throw refuse(400, '文件路径无效');
   const real = (base: string): string | null => { try { return fs.realpathSync(base); } catch { return null; } };
   const reals = bases.map(real).filter((base): base is string => !!base);

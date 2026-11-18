@@ -28,10 +28,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Windows.Automation;
 using AgentFrontdesk.UiaDriver;
 
+Console.InputEncoding = Console.OutputEncoding = new UTF8Encoding(false);
 var profile = Driver.LoadProfile(Environment.GetEnvironmentVariable("AX_PROFILE"));
 var command = args.Length > 0 ? args[0] : "";
 
@@ -106,6 +109,8 @@ namespace AgentFrontdesk.UiaDriver
                 }
         case "send":
         {
+            if (args.Skip(1).Any(a => a is "--model" or "--effort" or "--mode" or "steer"))
+                return Fail("unsupported", "这个动作（send）的 Windows 支持还没写好");
             var root = FindAppRoot(profile);
             if (root == null) return Fail("not_running", "应用没有在运行");
             var text = stdin.ReadToEnd();
@@ -121,7 +126,7 @@ namespace AgentFrontdesk.UiaDriver
                 tookFocus = true;
                 if (!BorrowFocusAndPaste(composer, text)) return Fail("no_fill", "输入框填不进文字");
             }
-            var pressed = PressSend(root, profile, composer);
+            var pressed = PressSend(root, profile, composer, ref tookFocus);
             return new Dictionary<string, object> { ["ok"] = pressed, ["pressed"] = pressed, ["tookFocus"] = tookFocus, ["targeted"] = false };
         }
                 case "stop":
@@ -169,19 +174,26 @@ namespace AgentFrontdesk.UiaDriver
                 : new[] { process };
             foreach (var name in candidates)
             {
-                foreach (var p in Process.GetProcessesByName(name))
+                var procs = Process.GetProcessesByName(name);
+                try
                 {
-                    try
+                    foreach (var p in procs)
                     {
-                        if (p.MainWindowHandle != IntPtr.Zero)
+                        try
                         {
-                            var element = AutomationElement.FromHandle(p.MainWindowHandle);
-                            WakeIfMinimized(p.MainWindowHandle);
-                            return element;
+                            var hwnd = p.MainWindowHandle;
+                            if (hwnd != IntPtr.Zero)
+                            {
+                                if (WakeIfMinimized(hwnd)) Thread.Sleep(60);
+                                return AutomationElement.FromHandle(hwnd);
+                            }
                         }
+                        catch { /* a process that left between listing and reading */ }
                     }
-                    catch { /* a process that left between listing and reading */ }
-                    finally { p.Dispose(); }
+                }
+                finally
+                {
+                    foreach (var p in procs) p.Dispose();
                 }
             }
             return null;
@@ -190,9 +202,11 @@ namespace AgentFrontdesk.UiaDriver
         // A window minimized to the taskbar (or the tray) answers UIA with a half-built tree;
         // restoring it without activation — SW_SHOWNOACTIVATE — rebuilds the tree without
         // stealing the foreground.
-        static void WakeIfMinimized(IntPtr hwnd)
+        static bool WakeIfMinimized(IntPtr hwnd)
         {
-            if (NativeMethods.IsIconic(hwnd)) NativeMethods.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
+            if (!NativeMethods.IsIconic(hwnd)) return false;
+            NativeMethods.ShowWindow(hwnd, 4 /* SW_SHOWNOACTIVATE */);
+            return true;
         }
 
         // ---- locators ----
@@ -235,18 +249,71 @@ namespace AgentFrontdesk.UiaDriver
             return way.ValueKind == JsonValueKind.Object && way.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String && (value = v.GetString() ?? "").Length > 0;
         }
 
+        static readonly string[] MacOnlyKeys = ["keys", "url", "subrole", "popup", "has", "named", "roles"];
+
+        static List<string> WayClasses(JsonElement way)
+        {
+            var list = new List<string>();
+            if (way.ValueKind != JsonValueKind.Object || !way.TryGetProperty("class", out var v)) return list;
+            if (v.ValueKind == JsonValueKind.String)
+            {
+                var s = v.GetString() ?? "";
+                if (s.Length > 0) list.Add(s);
+            }
+            else if (v.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in v.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.String) continue;
+                    var s = item.GetString() ?? "";
+                    if (s.Length > 0) list.Add(s);
+                }
+            }
+            return list;
+        }
+
+        static bool MatchClassToken(string actual, string want)
+        {
+            if (actual.Length == 0) return false;
+            if (want.EndsWith('*'))
+            {
+                var prefix = want[..^1];
+                return actual.StartsWith(prefix, StringComparison.Ordinal)
+                    || actual.Split(' ', StringSplitOptions.RemoveEmptyEntries).Any(t => t.StartsWith(prefix, StringComparison.Ordinal));
+            }
+            return actual == want
+                || actual.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains(want, StringComparer.Ordinal);
+        }
+
+        static bool MatchClasses(AutomationElement element, List<string> classes)
+        {
+            try
+            {
+                var cls = element.Current.ClassName ?? "";
+                var aid = element.Current.AutomationId ?? "";
+                return classes.All(w => MatchClassToken(cls, w) || MatchClassToken(aid, w));
+            }
+            catch { return false; }
+        }
+
+        static List<AutomationElement> FindByKey(AutomationElement scope, JsonElement profile, string key)
+            => LocatorWays(profile, key).SelectMany(w => FindByWay(scope, profile, w)).ToList();
+
         // A way is applied inside its `inside` container when `viaInside` is false; the second
         // pass over the container ignores `inside` (already resolved) so the walk cannot loop.
         static List<AutomationElement> FindByWay(AutomationElement scope, JsonElement profile, JsonElement way, bool viaInside = false)
         {
             var results = new List<AutomationElement>();
             if (way.ValueKind != JsonValueKind.Object) return results;
+            if (MacOnlyKeys.Any(k => way.TryGetProperty(k, out _))) return results;
 
             if (!viaInside && WayString(way, "inside", out var inside))
             {
-                foreach (var container in LocatorWays(profile, inside).SelectMany(w => FindByWay(scope, profile, w)))
+                var containers = FindByKey(scope, profile, inside);
+                if (containers.Count == 0) return results;
+                foreach (var container in containers)
                     results.AddRange(FindByWay(container, profile, way, viaInside: true));
-                if (results.Count > 0) return Place(results, way);
+                return Place(results, way);
             }
 
             var conditions = new List<Condition>();
@@ -257,17 +324,18 @@ namespace AgentFrontdesk.UiaDriver
             if (WayString(way, "name", out var name))
                 conditions.Add(new PropertyCondition(AutomationElement.NameProperty, name));
 
+            var classes = WayClasses(way);
             IEnumerable<AutomationElement> found;
             if (conditions.Count > 0)
             {
                 found = scope.FindAll(TreeScope.Descendants, conditions.Count == 1 ? conditions[0] : new AndCondition(conditions.ToArray()))
                     .Cast<AutomationElement>();
             }
-            else if (WayString(way, "class", out var classOnly))
+            else if (classes.Count > 0)
             {
                 // A class is tried against both places Chromium may expose it.
                 found = scope.FindAll(TreeScope.Descendants, Condition.TrueCondition).Cast<AutomationElement>()
-                    .Where(e => e.Current.ClassName == classOnly || e.Current.AutomationId == classOnly);
+                    .Where(e => MatchClasses(e, classes));
             }
             else
             {
@@ -275,14 +343,14 @@ namespace AgentFrontdesk.UiaDriver
             }
 
             if (WayString(way, "prefix", out var prefix))
-                found = found.Where(e => e.Current.Name.StartsWith(prefix, StringComparison.Ordinal));
+                found = found.Where(e => { try { return e.Current.Name.StartsWith(prefix, StringComparison.Ordinal); } catch { return false; } });
             if (WayString(way, "contains", out var contains))
-                found = found.Where(e => e.Current.Name.Contains(contains, StringComparison.Ordinal));
-            if (WayString(way, "class", out var cls) && conditions.Count > 0)
-                found = found.Where(e => e.Current.ClassName == cls || e.Current.AutomationId == cls);
+                found = found.Where(e => { try { return e.Current.Name.Contains(contains, StringComparison.Ordinal); } catch { return false; } });
+            if (classes.Count > 0 && conditions.Count > 0)
+                found = found.Where(e => MatchClasses(e, classes));
 
             results.AddRange(found);
-            return Place(results, way);
+            return viaInside ? results : Place(results, way);
         }
 
         // `index` counts from the end when negative (macOS habit: -1 is the last of the page).
@@ -335,7 +403,7 @@ namespace AgentFrontdesk.UiaDriver
         static bool BorrowFocusAndPaste(AutomationElement composer, string text)
         {
             var before = NativeMethods.GetForegroundWindow();
-            bool pasted = false;
+            var pasted = false;
             try
             {
                 composer.SetFocus();
@@ -343,8 +411,23 @@ namespace AgentFrontdesk.UiaDriver
                 {
                     try
                     {
-                        System.Windows.Clipboard.SetText(text);
+                        var copied = false;
+                        for (var attempt = 0; attempt < 3; attempt++)
+                        {
+                            try
+                            {
+                                System.Windows.Clipboard.SetText(text);
+                                copied = true;
+                                break;
+                            }
+                            catch
+                            {
+                                if (attempt < 2) Thread.Sleep(25);
+                            }
+                        }
+                        if (!copied) return;
                         System.Windows.Forms.SendKeys.SendWait("^v");
+                        Thread.Sleep(50);
                         pasted = true;
                     }
                     catch { }
@@ -362,25 +445,32 @@ namespace AgentFrontdesk.UiaDriver
         static bool BorrowFocusAndKey(AutomationElement target, string keys)
         {
             var before = NativeMethods.GetForegroundWindow();
+            var sent = false;
             try
             {
                 target.SetFocus();
                 var thread = new Thread(() =>
                 {
-                    try { System.Windows.Forms.SendKeys.SendWait(keys); } catch { }
+                    try
+                    {
+                        System.Windows.Forms.SendKeys.SendWait(keys);
+                        Thread.Sleep(50);
+                        sent = true;
+                    }
+                    catch { }
                 });
                 thread.SetApartmentState(ApartmentState.STA);
                 thread.Start();
-                thread.Join(2000);
+                if (!thread.Join(2000)) return false;
             }
             catch { return false; }
             finally { if (before != IntPtr.Zero) NativeMethods.SetForegroundWindow(before); }
-            return true;
+            return sent;
         }
 
         // Send prefers a button's InvokePattern — it works on a background window, no keys, no
         // focus. The composer's Enter is the fallback (the focus borrowed for one key).
-        static bool PressSend(AutomationElement root, JsonElement profile, AutomationElement composer)
+        static bool PressSend(AutomationElement root, JsonElement profile, AutomationElement composer, ref bool tookFocus)
         {
             foreach (var key in new[] { "send", "chatSendButton" })
                 foreach (var way in LocatorWays(profile, key))
@@ -388,6 +478,7 @@ namespace AgentFrontdesk.UiaDriver
                     var hits = FindByWay(root, profile, way);
                     if (hits.Count == 1 && TryInvoke(hits[0])) return true;
                 }
+            tookFocus = true;
             return BorrowFocusAndKey(composer, "{ENTER}");
         }
 

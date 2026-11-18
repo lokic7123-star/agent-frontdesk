@@ -32,7 +32,16 @@ class CodexProjects {
   // rows: project/list data. Returns the projects in the desktop's order and resolve(thread).
   index(rows: unknown[] = []): { projects: CodexProject[]; resolve: (thread: { id: string; projectId?: unknown; cwd?: unknown }) => CodexProject | null | undefined } {
     const desktop = this.desktop();
-    const projects = rows.filter(row => get(row, 'id')).map((row): CodexProject => ({ id: String(get(row, 'id')), name: String(get(row, 'name') || ''), roots: list(get(row, 'roots')).map(root => String(get(root, 'path') || '').replace(/\/+$/, '')).filter(Boolean), position: Number(get(row, 'position') ?? 0), legacyId: String(get(row, 'metadata', 'codex.localProjectId') || '') }));
+    const stripTrail = (raw: string): string => {
+      if (raw === '/' || /^[a-zA-Z]:[\\/]+$/.test(raw)) return `${raw.slice(0, 2)}${raw[2] === '\\' ? '\\' : '/'}`;
+      return raw.replace(/[\\/]+$/, '');
+    };
+    const normPath = (raw: string): string => {
+      const p = raw.replace(/\\/g, '/').replace(/^([A-Z]):/, (_, d: string) => `${d.toLowerCase()}:`);
+      const trimmed = p === '/' || /^[a-z]:\/+$/.test(p) ? (p === '/' ? '/' : `${p.slice(0, 2)}/`) : p.replace(/\/+$/, '');
+      return process.platform === 'win32' ? trimmed.toLowerCase() : trimmed;
+    };
+    const projects = rows.filter(row => get(row, 'id')).map((row): CodexProject => ({ id: String(get(row, 'id')), name: String(get(row, 'name') || ''), roots: list(get(row, 'roots')).map(root => stripTrail(String(get(root, 'path') || ''))).filter(Boolean), position: Number(get(row, 'position') ?? 0), legacyId: String(get(row, 'metadata', 'codex.localProjectId') || '') }));
     const byId = new Map(projects.map(project => [project.id, project]));
     const legacy = new Map<string, unknown>(desktop.legacy);
     for (const project of projects) if (project.legacyId) legacy.set(project.legacyId, project.id);
@@ -42,15 +51,20 @@ class CodexProjects {
     const ordered = [...projects].sort((a, b) => (Number(rank.has(a.id)) - Number(rank.has(b.id))) || (rank.has(a.id) ? (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0) : desktop.order.length ? b.position - a.position : a.position - b.position));
     const byRoot = [...projects].sort((a, b) => a.position - b.position);
     const under = (cwd: string): CodexProject | null => {
+      const c = normPath(cwd);
+      if (!c) return null;
       let best: CodexProject | null = null, length = -1;
-      for (const project of byRoot) for (const root of project.roots) if ((cwd === root || cwd.startsWith(`${root}/`)) && root.length > length) { best = project; length = root.length; }
+      for (const project of byRoot) for (const root of project.roots) {
+        const r = normPath(root);
+        if ((c === r || c.startsWith(r.endsWith('/') ? r : `${r}/`)) && r.length > length) { best = project; length = r.length; }
+      }
       return best;
     };
     const resolve = (thread: { id: string; projectId?: unknown; cwd?: unknown }) => {
       const assigned = current(thread.projectId || '') || current(desktop.assignments.get(thread.id) || '');
       if (assigned) return byId.get(assigned);
       if (desktop.projectless.has(thread.id)) return null;
-      return under(String(thread.cwd || '').replace(/\/+$/, ''));
+      return under(String(thread.cwd || ''));
     };
     return { projects: ordered, resolve };
   }

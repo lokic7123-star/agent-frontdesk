@@ -16,6 +16,8 @@
     <SelfContained>false</SelfContained>
     <!-- Compression needs self-contained; framework-dependent publishes ship without it. -->
     <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <!-- When buildWin32() redirects BaseIntermediateOutputPath outside the repo, local obj/bin folders must remain excluded from C# globbing. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <!-- UIA lives in the WindowsDesktop ref pack; named in full so the SDK resolves it cleanly. -->

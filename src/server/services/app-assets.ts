@@ -40,8 +40,9 @@ function readAsarFile(archive: string, pattern: RegExp): { path: string; data: B
 function appPlaces(asar: string): string[] {
   if (process.platform === 'win32') {
     // Windows Electron layout (<AppDir>\resources\app.asar): the app is its install folder.
-    const at = asar.toLowerCase().lastIndexOf(`${path.sep}resources${path.sep}`);
-    const app = at < 0 ? asar : asar.slice(0, at);
+    const norm = path.normalize(asar);
+    const at = norm.toLowerCase().lastIndexOf(`${path.sep}resources${path.sep}`);
+    const app = at < 0 ? norm : norm.slice(0, at);
     return [app];
   }
   const at = asar.indexOf('.app/'), app = at < 0 ? asar : asar.slice(0, at + 4);

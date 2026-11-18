@@ -146,8 +146,9 @@ test('Claude: an interrupted or failed result is reported as such', () => {
   }
 });
 
-test('Claude: the list reads each transcript once, and a transcript being written only where it grew', () => {
+test('Claude: the list reads each transcript once, and a transcript being written only where it grew', t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const index = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(index, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -195,8 +196,9 @@ test('Claude: the list reads each transcript once, and a transcript being writte
   } finally { fs.readFileSync = original; }
 });
 
-test('Claude: desktop index drives the list, groups and the reason sending is blocked', async () => {
+test('Claude: desktop index drives the list, groups and the reason sending is blocked', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const index = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(index, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -226,8 +228,9 @@ test('Claude: desktop index drives the list, groups and the reason sending is bl
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-test('Claude: a worktree chat keeps its project on the checkout it came from, and a looked-at status asks for no look', () => {
+test('Claude: a worktree chat keeps its project on the checkout it came from, and a looked-at status asks for no look', t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const index = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(index, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -295,11 +298,12 @@ test('without a Claude sign-in dictation explains what to do', async () => {
   await assert.rejects(bridge.dictate({ language: 'zh', onText() {}, onError() {}, onEnd() {} }), /claude auth login/);
 });
 
-test('Claude: a turn paused mid-step (a steer queued, a permission dialog) does not end the followed run', async () => {
+test('Claude: a turn paused mid-step (a steer queued, a permission dialog) does not end the followed run', async t => {
   // The desktop moves the index's turn edge when it queues a steer (seen with an image steered
   // during a long tool call) and when a tool waits for the person's permission: the console
   // keeps following, the turn ends only with its reply.
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const indexDir = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(indexDir, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -342,8 +346,9 @@ test('Claude: a turn paused mid-step (a steer queued, a permission dialog) does 
   assert.deepEqual(waiting, [['desktop:t2', ['desktop']]], 'a history read shows it too');
 });
 
-test('Claude: a session the desktop has is sent by the desktop app and followed in its transcript', async () => {
+test('Claude: a session the desktop has is sent by the desktop app and followed in its transcript', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const indexDir = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(indexDir, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -436,8 +441,9 @@ test('Claude: a session the desktop has is sent by the desktop app and followed 
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-test('Claude: without the desktop app nothing is sent, and the page is told why; no other process runs it', async () => {
+test('Claude: without the desktop app nothing is sent, and the page is told why; no other process runs it', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const indexDir = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(indexDir, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -509,8 +515,9 @@ test('Claude: background commands, task notices, stops and compaction show as th
   assert.equal(at(open.steps, 0).status, 'running');
 });
 
-test('Claude: a message sent during a desktop turn goes through the desktop queue and continues the turn', async () => {
+test('Claude: a message sent during a desktop turn goes through the desktop queue and continues the turn', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const indexDir = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(indexDir, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -563,8 +570,9 @@ test('Claude: a message sent during a desktop turn goes through the desktop queu
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-test('Claude: a new chat is created by the desktop app with its first message; without the desktop nothing is created', async () => {
+test('Claude: a new chat is created by the desktop app with its first message; without the desktop nothing is created', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const indexDir = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(indexDir, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -610,8 +618,9 @@ test('Claude: a new chat is created by the desktop app with its first message; w
   fs.rmSync(home, { recursive: true, force: true });
 });
 
-test('Claude: model, effort and permissions picked in the console are picked in the desktop app before it sends', async () => {
+test('Claude: model, effort and permissions picked in the console are picked in the desktop app before it sends', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const indexDir = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   const project = path.join(home, '.claude/projects/-work');
   fs.mkdirSync(indexDir, { recursive: true }); fs.mkdirSync(project, { recursive: true });
@@ -1309,8 +1318,9 @@ test('the shared driver turns each desktop\'s accessibility on the way its shell
   assert.ok(profile('codex').accessibilitySwitches.includes('AXEnhancedUserInterface'));
 });
 
-test('Claude\'s question to the person is a card in the chat, answered by picking on the desktop app\'s own card', async () => {
+test('Claude\'s question to the person is a card in the chat, answered by picking on the desktop app\'s own card', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-ask-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const pressed: unknown[] = [];
   let answered = () => {};
   const desktop = fake<ClaudeDesktop>({ check: async () => ({ available: true }), answer: async (meta, question, option) => { pressed.push([meta.title, question, option]); answered(); return { ok: true }; } });
@@ -1347,9 +1357,10 @@ test('Claude\'s question to the person is a card in the chat, answered by pickin
   bridge.dispose(); fs.rmSync(home, { recursive: true });
 });
 
-test('Claude: a file from the chat is opened in the desktop, in its own session', async () => {
+test('Claude: a file from the chat is opened in the desktop, in its own session', async t => {
   const { ClaudeDesktop } = __claude_desktop;
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const index = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   fs.mkdirSync(index, { recursive: true });
   fs.writeFileSync(path.join(index, 'local_abc.json'), JSON.stringify({ sessionId: 'local_abc', cliSessionId: 'cli-1', cwd: '/work', title: '修文件链接' }));
@@ -1363,10 +1374,11 @@ test('Claude: a file from the chat is opened in the desktop, in its own session'
   desktop.runner = async () => ({ ok: false, error: '没能在Claude 桌面版里打开这个会话' });
   await assert.rejects(bridge.openFile('cli-1', { path: 'a.js', absolute: '', relative: '', label: '' }), /没能在Claude 桌面版里打开这个会话/);
 });
-test('Claude: the header button takes the person to the session in the desktop, a Claude-mode chat in its own mode', async () => {
+test('Claude: the header button takes the person to the session in the desktop, a Claude-mode chat in its own mode', async t => {
   const { ClaudeDesktop } = __claude_desktop;
   const { ChatMode } = await import('../src/server/services/desktop-chat.js');
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const index = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   fs.mkdirSync(index, { recursive: true });
   fs.writeFileSync(path.join(index, 'local_abc.json'), JSON.stringify({ sessionId: 'local_abc', cliSessionId: 'cli-1', cwd: '/work', title: '桌面会话' }));
@@ -1385,9 +1397,10 @@ test('Claude: the header button takes the person to the session in the desktop, 
   await assert.rejects(mode.show('c-1'), error => errorField(error, 'status') === 409);
   fs.rmSync(home, { recursive: true });
 });
-test('Claude: a wrap-up card\'s buttons are read from the desktop, and a read that found none yet is read again', async () => {
+test('Claude: a wrap-up card\'s buttons are read from the desktop, and a read that found none yet is read again', async t => {
   const { ClaudeDesktop } = __claude_desktop;
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-home-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const index = path.join(home, 'Library/Application Support/Claude/claude-code-sessions/acct/org');
   fs.mkdirSync(index, { recursive: true });
   fs.writeFileSync(path.join(index, 'local_abc.json'), JSON.stringify({ sessionId: 'local_abc', cliSessionId: 'cli-1', cwd: '/work', title: '清理' }));
@@ -1457,8 +1470,9 @@ test('a preview the desktop opened in its Browser pane carries the address its r
   } finally { dispose(); }
 });
 
-test("a session's own temporary folder (scratchpad, task output) is a folder its file links may open", () => {
+test("a session's own temporary folder (scratchpad, task output) is a folder its file links may open", (t) => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-roots-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
   const project = path.join(home, '.claude', 'projects', '-Users-me-app');
   fs.mkdirSync(project, { recursive: true });
   fs.writeFileSync(path.join(project, 's1.jsonl'), '');
@@ -1470,7 +1484,7 @@ test("a session's own temporary folder (scratchpad, task output) is a folder its
   } finally { fs.rmSync(home, { recursive: true, force: true }); }
 });
 
-test('a signed-out Claude Code is told the sign-in command that works on this machine', async () => {
+test('a signed-out Claude Code is told the sign-in command that works on this machine', async t => {
   const { loginCommand } = await import('../src/server/claude-bridge.js');
   const { english } = await import('../src/client/js/i18n.js');
   // On the PATH: the plain command. Only the desktop app's own copy: its full path, quoted (it has a space in it).
@@ -1480,6 +1494,7 @@ test('a signed-out Claude Code is told the sign-in command that works on this ma
   assert.equal(loginCommand(own, { PATH: '/usr/bin:/opt/bin' }), `"${own}" auth login`);
   // The bridge says it where it reports being signed out, and the page says the same in English.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'frontdesk-signin-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const bin = path.join(dir, process.platform === 'win32' ? 'claude.cmd' : 'claude');
   try {
     // Windows: a shell script without an extension cannot be spawned; claude.cmd is what an npm

@@ -9,7 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { NATIVE } from './paths.js';
-import { loadConfig } from './config.js';
+import { loadConfig, winSpawnArgs } from './config.js';
 import EventEmitter from 'node:events';
 import { CodexLifecycle, resolveCodexTurn } from './services/codex-lifecycle.js';
 import { changesOf, questionCard } from './core/presentation.js';
@@ -139,8 +139,10 @@ class CodexBridge extends EventEmitter {
     const bin = this.codexBin;
     if (!bin) throw new Error('未发现 Codex，请设置 CODEX_BIN');
     this.starting = (async () => {
-      const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(bin);
-      const proc = spawn(bin, ['app-server', '--stdio'], ...(viaShell ? [{ shell: true }] : []));
+      const [cmd, cmdArgs, cmdOpts] = winSpawnArgs(bin, ['app-server', '--stdio'], {
+        stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
+      });
+      const proc = spawn(cmd, cmdArgs, cmdOpts);
       this.proc = proc;
       proc.on('error', err => this.failPending(err));
       proc.on('exit', code => {
@@ -561,8 +563,12 @@ class CodexBridge extends EventEmitter {
     // The project is picked by its name in the desktop's project menu; no cwd = outside every project.
     let project = ':none';
     if (input.cwd) {
-      const cwd = path.resolve(input.cwd).replace(/\/+$/, '');
-      const match = (await this.listProjects()).find(item => item.cwd && path.resolve(item.cwd) === cwd);
+      const normCwd = (p: string) => {
+        const resolved = path.resolve(p);
+        return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+      };
+      const cwd = normCwd(input.cwd);
+      const match = (await this.listProjects()).find(item => item.cwd && normCwd(item.cwd) === cwd);
       if (!match) refuse('这个文件夹不是 Codex 桌面版里的项目，请在桌面版里先把它加为项目');
       project = match.name;
     }
@@ -629,7 +635,13 @@ class CodexBridge extends EventEmitter {
   // a desktop that is not running starts just to do this.
   wake(threadId: string): Promise<void> {
     if (process.platform === 'win32') {
-      return new Promise((resolve, reject) => execFile('cmd.exe', ['/d', '/s', '/c', `start "" "codex://threads/wake/${encodeURIComponent(threadId)}"`], { timeout: 15000 }, err => err ? reject(Object.assign(new Error('没能唤起 Codex 桌面版来处理这条消息'), { cause: err })) : resolve()));
+      const url = `codex://threads/wake/${encodeURIComponent(threadId)}`;
+      return new Promise((resolve, reject) => execFile(
+        process.env.ComSpec || 'cmd.exe',
+        ['/d', '/s', '/c', `"start "" "${url}""`],
+        { timeout: 15000, windowsVerbatimArguments: true, windowsHide: true },
+        err => err ? reject(Object.assign(new Error('没能唤起 Codex 桌面版来处理这条消息'), { cause: err })) : resolve(),
+      ));
     }
     return new Promise((resolve, reject) => execFile('/usr/bin/open', ['-g', `codex://threads/wake/${threadId}`], { timeout: 15000 }, err => err ? reject(Object.assign(new Error('没能唤起 Codex 桌面版来处理这条消息'), { cause: err })) : resolve()));
   }

@@ -144,9 +144,20 @@ class DesktopAutomation {
     const base = path.join(this.cacheDir, `${this.engine}-desktop-${hashTree(UIA_PROJECT)}.exe`);
     if (!fs.existsSync(base)) {
       fs.mkdirSync(this.cacheDir, { recursive: true });
-      await new Promise<void>((resolve, reject) => execFile('dotnet', ['publish', UIA_PROJECT, '-c', 'Release', '-r', 'win-x64', '--self-contained', 'false', '-o', `${base}.tmp`], { timeout: 300000 }, err => err ? reject(err) : resolve()));
-      fs.renameSync(path.join(`${base}.tmp`, 'uia-driver.exe'), base);
-      fs.rmSync(`${base}.tmp`, { recursive: true, force: true });
+      const rid = process.arch === 'arm64' ? 'win-arm64' : 'win-x64';
+      const objDir = path.join(this.cacheDir, `obj-${process.pid}-${this.engine}`);
+      try {
+        await new Promise<void>((resolve, reject) => execFile(
+          'dotnet',
+          ['publish', UIA_PROJECT, '-c', 'Release', '-r', rid, '--self-contained', 'false', `-p:BaseIntermediateOutputPath=${objDir}${path.sep}`, '-o', `${base}.tmp`],
+          { timeout: 300000 },
+          err => err ? reject(err) : resolve(),
+        ));
+        fs.renameSync(path.join(`${base}.tmp`, 'uia-driver.exe'), base);
+      } finally {
+        fs.rmSync(`${base}.tmp`, { recursive: true, force: true });
+        fs.rmSync(objDir, { recursive: true, force: true });
+      }
       this.prune(base);
     }
     return (this.binary = base);
@@ -174,7 +185,7 @@ class DesktopAutomation {
         const file = path.join(this.cacheDir, name);
         if (!name.startsWith(`${this.engine}-desktop-`) || file === current) continue;
         const { mtimeMs, atimeMs } = fs.statSync(file);
-        if (Date.now() - Math.max(mtimeMs, atimeMs) > 30 * 24 * 3600_000) fs.rmSync(file, { force: true });
+        if (Date.now() - Math.max(mtimeMs, atimeMs) > 30 * 24 * 3600_000) fs.rmSync(file, { recursive: true, force: true });
       }
     } catch {}
   }

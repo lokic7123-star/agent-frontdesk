@@ -10,13 +10,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import readline from 'node:readline';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import EventEmitter from 'node:events';
 import { UnifiedSession, UnifiedTurn, UnifiedStep, EngineEvents, assignPhases } from './types.js';
 import { questionCard } from './core/presentation.js';
 import { withAttachments } from './core/attachments.js';
-import { loadConfig } from './config.js';
+import { loadConfig, winSpawnArgs } from './config.js';
 import { tailJsonl } from './services/jsonl-tail.js';
 import { readSqlite } from './services/sqlite-reader.js';
 import { bag, errorField, get, isBag, list, messageOf, parseJson, str, text as asText, type Bag } from '../shared/guards.js';
@@ -62,7 +62,18 @@ function toolOutput(content: unknown): string {
 // The live run (watchTurn) and the record (parseRecords) use this one rule.
 function editedFile(step: Pick<Step, 'type' | 'paths'>): string {
   const target = step.paths?.[0];
-  return step.type === 'file_change' && target && !target.includes(`${path.sep}.system_generated${path.sep}`) ? target : '';
+  return step.type === 'file_change' && target && !/[\\/]\.system_generated[\\/]/.test(target) ? target : '';
+}
+function uriPath(raw: unknown): string {
+  const value = String(raw || '');
+  if (/^file:\/\//i.test(value)) { try { return fileURLToPath(value); } catch {} }
+  return value;
+}
+function normPath(raw: unknown): string {
+  const value = uriPath(raw);
+  if (!value) return '';
+  const resolved = path.resolve(value).replace(/\\/g, '/');
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
 }
 function stepOf(tool: unknown, id: string): UnifiedStep {
   const input = decodeArgs(get(tool, 'args'));
@@ -173,6 +184,8 @@ class AntigravityBridge extends EventEmitter {
   fetch: typeof fetch; stopping: Set<string>; watchMs: number; settleMs: number; giveUpMs: number;
   catalog: { at: number; models: Model[] } | null; lastModels: Map<string, string>; asks: Map<string, AgAsk>;
   recentCache?: Map<string, { key: string; messages: RecentMessage[] }>;
+  lsCache: { at: number; value: LsEnv } | null;
+  pidCache: Map<number, { ok: boolean; at: number }>;
   constructor(config: AntigravityConfig = loadConfig(), env: NodeJS.ProcessEnv = process.env) {
     super();
     this.home = os.homedir();
@@ -190,6 +203,8 @@ class AntigravityBridge extends EventEmitter {
     this.catalog = null; // the desktop's model list, kept for a minute
     this.lastModels = new Map(); // conversation → the model it last used, once read
     this.asks = new Map(); // what the agent is waiting on the person for, by card id
+    this.lsCache = null;
+    this.pidCache = new Map();
   }
 
   // One call to the language server the desktop app runs (the app's own channel).
@@ -206,6 +221,24 @@ class AntigravityBridge extends EventEmitter {
     return response.json();
   }
 
+  private isValidLsPid(pid: number): boolean {
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    try { process.kill(pid, 0); } catch { return false; }
+    if (process.platform !== 'win32' || pid === process.pid) return true;
+    const now = Date.now(), cached = this.pidCache.get(pid);
+    if (cached && now - cached.at < 30_000) return cached.ok;
+    let ok = false;
+    try {
+      const out = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'], {
+        encoding: 'utf8', timeout: 1500, windowsHide: true,
+      });
+      ok = /language_server|antigravity|codeium|node/i.test(out);
+    } catch { ok = false; }
+    if (this.pidCache.size > 64) this.pidCache.clear();
+    this.pidCache.set(pid, { ok, at: now });
+    return ok;
+  }
+
   // Address and CSRF token of the running language server. Antigravity injects them
   // into processes it starts; otherwise the app's own daemon record holds them
   // (daemon/hub_<port>.json, rewritten on every launch, so it is read each time).
@@ -214,20 +247,25 @@ class AntigravityBridge extends EventEmitter {
     if (address && token) {
       return { ANTIGRAVITY_LS_ADDRESS: address, ANTIGRAVITY_CSRF_TOKEN: token };
     }
+    const now = Date.now();
+    if (this.lsCache && now - this.lsCache.at < 2000) return this.lsCache.value;
     const dir = path.join(this.agyDir, 'daemon');
     let records: string[] = [];
     try { records = fs.readdirSync(dir).filter(file => /^hub_\d+\.json$/.test(file)).map(file => path.join(dir, file)); } catch { return null; }
     const live = records.map(file => {
       try {
         const data = parseJson(fs.readFileSync(file, 'utf8')), pid = get(data, 'pid');
-        // process.kill takes a number only; any other pid is not a live process (it threw before).
-        if (typeof pid !== 'number') return null;
-        process.kill(pid, 0);
+        if (typeof pid !== 'number' || !this.isValidLsPid(pid)) return null;
         const port = get(data, 'httpPort'), csrf = get(data, 'csrfToken');
-        return port && csrf ? { port, csrf, mtime: fs.statSync(file).mtimeMs } : null;
+        return typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535 && csrf
+          ? { port, csrf, mtime: fs.statSync(file).mtimeMs }
+          : null;
       } catch { return null; }
     }).filter(item => item !== null).sort((a, b) => b.mtime - a.mtime)[0];
-    return live ? { ANTIGRAVITY_LS_ADDRESS: `127.0.0.1:${live.port}`, ANTIGRAVITY_CSRF_TOKEN: String(live.csrf) } : null;
+    if (!live) return null;
+    const value: LsEnv = { ANTIGRAVITY_LS_ADDRESS: `127.0.0.1:${live.port}`, ANTIGRAVITY_CSRF_TOKEN: String(live.csrf) };
+    this.lsCache = { at: now, value };
+    return value;
   }
 
   // Why sending is impossible right now, or '' when agentapi can reach the app.
@@ -276,7 +314,7 @@ class AntigravityBridge extends EventEmitter {
     return readSqlite(this.dbPath, 'SELECT conversation_id, title, preview, last_modified_time, workspace_uris, not_fully_idle, killed, status, step_count, last_user_input_time, last_user_input_step_index FROM conversation_summaries WHERE nesting_depth = 0 ORDER BY last_modified_time DESC LIMIT 200;');
   }
 
-  sessionOf(item: Bag): UnifiedSession {
+  sessionOf(item: Bag, sendBlocked = this.sendBlockedReason()): UnifiedSession {
     return new UnifiedSession({
       id: asText(item['conversation_id']),
       engine: 'antigravity',
@@ -285,7 +323,7 @@ class AntigravityBridge extends EventEmitter {
       cwd: workspaceOf(item['workspace_uris']),
       status: Number(item['not_fully_idle']) && !Number(item['killed']) ? 'busy' : 'idle',
       isDesktopActive: !!Number(item['not_fully_idle']),
-      sendBlocked: this.sendBlockedReason(),
+      sendBlocked,
       // When the running turn began: the avatar's bubble shows only what was said since.
       metadata: { status: item['status'], turnStartedAt: Date.parse(String(item['last_user_input_time'])) > 0 ? toIso(item['last_user_input_time']) : undefined },
     });
@@ -314,8 +352,9 @@ class AntigravityBridge extends EventEmitter {
   }
 
   async listConversations(): Promise<UnifiedSession[]> {
+    const blocked = this.sendBlockedReason();
     return this.summaries().map(item => {
-      const session = this.sessionOf(item), id = asText(item['conversation_id']);
+      const session = this.sessionOf(item, blocked), id = asText(item['conversation_id']);
       const model = this.lastModels.get(id);
       session.metadata = { ...session.metadata, recentMessages: this.recentMessages(id), ...(model !== undefined ? { model } : {}) };
       return session;
@@ -360,12 +399,16 @@ class AntigravityBridge extends EventEmitter {
         // Pictures the person attached: the desktop keeps them in the conversation's own folder,
         // and they are served from there (media()). One kept elsewhere is only counted.
         const images = list(get(record, 'media')).filter(item => /^image\//.test(asText(get(item, 'mime_type') || '')));
-        const shown = images.filter(item => conversationId && this.uploadOf(conversationId, path.basename(String(get(item, 'uri') || ''))) === get(item, 'uri'));
+        const shown = images.filter(item => {
+          const uri = get(item, 'uri');
+          const expected = conversationId && uri ? this.uploadOf(conversationId, path.basename(uriPath(uri))) : '';
+          return !!expected && normPath(expected) === normPath(uri);
+        });
         const rest = images.length - shown.length;
         turn = new UnifiedTurn({
           id: `turn-${stepIndex}`,
           userPrompt: [rest ? `[图片 ×${rest}]` : '', this.cleanUserPrompt(content)].filter(Boolean).join(' '),
-          userImages: shown.map(item => ({ url: `/api/sessions/antigravity/${conversationId}/media/${path.basename(String(get(item, 'uri')))}`, alt: '' })),
+          userImages: shown.map(item => ({ url: `/api/sessions/antigravity/${conversationId}/media/${path.basename(uriPath(get(item, 'uri')))}`, alt: '' })),
           timestamp: timeOf(get(record, 'created_at')), status: 'completed',
         });
       } else if (turn && type === 'SYSTEM_MESSAGE') {
@@ -554,10 +597,9 @@ class AntigravityBridge extends EventEmitter {
       const bin = this.binPath;
       // Callers check sendBlockedReason() first; without agentapi there is nothing to run.
       if (!bin) { reject(new Error(NO_AGENTAPI)); return; }
-      // Windows ships agentapi as a .bat, which execFile cannot start without a shell; the
-      // arguments are flags and ids the caller controls, so the shell adds only cmd.exe's shim.
-      const viaShell = process.platform === 'win32' && /\.(bat|cmd)$/i.test(bin);
-      execFile(bin, args, { env: { ...this.env, ...this.lsEnv() }, timeout: 60000, maxBuffer: 4 * 1024 * 1024, ...(viaShell ? { shell: true } : {}) }, (err, stdout, stderr) => {
+      // Windows ships agentapi as a .bat; winSpawnArgs quotes the arguments for cmd.exe without `shell: true`.
+      const [cmd, cmdArgs, cmdOpts] = winSpawnArgs(bin, args, { env: { ...this.env, ...this.lsEnv() }, timeout: 60000, maxBuffer: 4 * 1024 * 1024 });
+      execFile(cmd, cmdArgs, cmdOpts, (err, stdout, stderr) => {
         let data: unknown = null;
         try { data = parseJson(String(stdout).trim()); } catch {}
         const failed = get(data, 'error');

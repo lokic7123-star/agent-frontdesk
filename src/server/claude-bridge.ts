@@ -19,6 +19,7 @@ import { questionCard, desktopCard } from './core/presentation.js';
 import { withAttachments } from './core/attachments.js';
 import { promptStarts } from '../shared/turn-match.js';
 import { ClaudeDesktop, type DesktopSession } from './claude-desktop.js';
+import { winSpawnArgs } from './config.js';
 import { newControlsOf, type DesktopFlags, type HelperResult } from './core/desktop-automation.js';
 import { globalSocket } from './services/node-websocket.js';
 import { arr, bag, errorField, get, list, messageOf, num, parseJson, str, text as asText } from '../shared/guards.js';
@@ -35,7 +36,11 @@ const NO_CLI = '没有找到 Claude Code 命令行。请先打开一次 Claude �
 function loginCommand(bin: string | null, env: NodeJS.ProcessEnv = process.env): string {
   // Both separators are accepted so a PATH written for the other platform is still understood,
   // and the comparison normalizes \ so a Windows join matches a /-written candidate.
-  const onPath = !!bin && (env['PATH'] || '').split(/[;:]/).some(dir => path.join(dir, 'claude').replace(/\\/g, '/') === bin.replace(/\\/g, '/'));
+  const win = process.platform === 'win32';
+  const norm = (value: string) => { const p = value.replace(/\\/g, '/'); return win ? p.toLowerCase() : p; };
+  const names = win ? ['claude', 'claude.exe', 'claude.cmd'] : ['claude'];
+  const onPath = !!bin && (env['PATH'] || '').split(/;|(?<!(?:^|[;:])[A-Za-z]):/).filter(Boolean)
+    .some(dir => names.some(name => norm(path.join(dir, name)) === norm(bin)));
   return !bin || onPath ? 'claude auth login' : `"${bin}" auth login`;
 }
 const noSignIn = (bin: string | null): string => `读取不到 Claude Code 的登录信息，请先运行 ${loginCommand(bin)}`;
@@ -91,20 +96,44 @@ export interface DesktopRun extends StreamRun {
 type Route = { error: string } | { desktop: true; meta: SessionMeta; file: string };
 
 // ---------- discovery ----------
-function findClaudeBin(env: NodeJS.ProcessEnv = process.env, home = os.homedir()): string | null {
+export interface FindClaudeBinOptions { env?: NodeJS.ProcessEnv; home?: string; appDir?: string }
+function findClaudeBin(options?: FindClaudeBinOptions): string | null;
+function findClaudeBin(env: NodeJS.ProcessEnv, home?: string): string | null;
+function findClaudeBin(envOrOptions: FindClaudeBinOptions | NodeJS.ProcessEnv = process.env, homeArg?: string): string | null {
+  const isOpts = homeArg === undefined && ('home' in envOrOptions || 'appDir' in envOrOptions || 'env' in envOrOptions);
+  const env = (isOpts ? (envOrOptions as FindClaudeBinOptions).env : envOrOptions as NodeJS.ProcessEnv) || process.env;
+  const home = (isOpts ? (envOrOptions as FindClaudeBinOptions).home : homeArg) || os.homedir();
+  const win = process.platform === 'win32';
+  const appDir = (isOpts ? (envOrOptions as FindClaudeBinOptions).appDir : undefined)
+    || (win ? path.join(env['APPDATA'] || path.join(home, 'AppData', 'Roaming'), 'Claude') : path.join(home, 'Library/Application Support/Claude'));
   if (env['CLAUDE_BIN']) return env['CLAUDE_BIN'];
-  for (const dir of (env['PATH'] || '').split(path.delimiter)) {
-    const file = path.join(dir, 'claude');
-    try { fs.accessSync(file, fs.constants.X_OK); return file; } catch {}
+  const dirs = (env['PATH'] || '').split(path.delimiter).filter(Boolean);
+  for (const name of win ? ['claude.exe', 'claude.cmd', 'claude.bat', 'claude'] : ['claude']) {
+    for (const dir of dirs) {
+      const file = path.join(dir, name);
+      try { fs.accessSync(file, fs.constants.X_OK); return file; } catch {}
+    }
+  }
+  if (win) {
+    const local = path.join(home, '.local', 'bin', 'claude.exe');
+    if (fs.existsSync(local)) return local;
   }
   // The desktop app installs its own copy, one folder per version.
-  const root = path.join(home, 'Library/Application Support/Claude/claude-code');
+  const root = path.join(appDir, 'claude-code');
   try {
     const versions = fs.readdirSync(root).filter(name => /^\d+\.\d+\.\d+$/.test(name))
       .sort((a, b) => b.split('.').map(Number).reduce((d, n, i) => d || n - (a.split('.').map(Number)[i] ?? NaN), 0));
     for (const version of versions) {
-      for (const build of fs.readdirSync(path.join(root, version))) {
-        const file = path.join(root, version, build, 'claude.app/Contents/MacOS/claude');
+      const verDir = path.join(root, version);
+      if (win) {
+        const direct = path.join(verDir, 'claude.exe');
+        if (fs.existsSync(direct)) return direct;
+      }
+      for (const build of fs.readdirSync(verDir, { withFileTypes: true })) {
+        if (!build.isDirectory()) continue;
+        const file = win
+          ? path.join(verDir, build.name, 'claude.exe')
+          : path.join(verDir, build.name, 'claude.app/Contents/MacOS/claude');
         if (fs.existsSync(file)) return file;
       }
     }
@@ -456,10 +485,13 @@ class ClaudeBridge {
   constructor({ home = os.homedir(), env = process.env, bin, claudeHome, desktopHome, desktop, tmpDir = os.tmpdir() }: ClaudeBridgeOptions = {}) {
     this.home = home; this.tmpDir = tmpDir;
     this.claudeDir = claudeHome || path.join(home, '.claude');
-    this.appDir = desktopHome || path.join(home, 'Library/Application Support/Claude');
+    const winAppDir = path.join(env['APPDATA'] || path.join(this.home, 'AppData', 'Roaming'), 'Claude');
+    const macAppDir = path.join(this.home, 'Library/Application Support/Claude');
+    const appDir = desktopHome || (process.platform === 'win32' && !fs.existsSync(macAppDir) ? winAppDir : macAppDir);
+    this.appDir = appDir;
     this.indexDir = path.join(this.appDir, 'claude-code-sessions');
     this.projectsDir = path.join(this.claudeDir, 'projects');
-    this.bin = bin === undefined ? findClaudeBin(env, home) : bin;
+    this.bin = bin === null ? null : (bin || findClaudeBin({ home: this.home, appDir, env }));
     this.cache = new Map(); this.metaCache = new Map(); this.repos = new Map();
     this.runs = new Map(); this.starts = new Map();
     this.auth = null; this.modelCache = null;
@@ -686,8 +718,12 @@ class ClaudeBridge {
   // ---------- Claude Code CLI: reads the model list and usage only ----------
   spawnCli(args: string[], cwd?: string): ChildProcessByStdio<Writable, Readable, Readable> {
     if (!this.bin) throw new Error(NO_CLI);
-    const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(this.bin);
-    return spawn(this.bin, ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', ...args], { cwd: cwd && fs.existsSync(cwd) ? cwd : this.home, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'sdk-cli' }, ...(viaShell ? { shell: true } : {}) });
+    const [cmd, cmdArgs, cmdOpts] = winSpawnArgs(
+      this.bin,
+      ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', ...args],
+      { cwd: cwd && fs.existsSync(cwd) ? cwd : this.home, stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'], env: { ...process.env, CLAUDE_CODE_ENTRYPOINT: 'sdk-cli' } },
+    );
+    return spawn(cmd, cmdArgs, cmdOpts);
   }
   // Control requests that send no prompt and keep no session (list_models, get_usage).
   async control(subtypes: string[], timeoutMs = 15000): Promise<Record<string, unknown>> {
@@ -719,10 +755,10 @@ class ClaudeBridge {
     if (!this.bin) return { loggedIn: false, error: NO_CLI };
     if (this.auth && Date.now() - this.auth.at < 60000) return this.auth;
     try {
-      // A Windows npm install arrives as claude.cmd, which execFileSync cannot start without a
-      // shell; the arguments are fixed words, so a shell only adds the cmd.exe shim.
-      const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(this.bin);
-      const loggedIn = !!get(parseJson(execFileSync(this.bin, ['auth', 'status'], { encoding: 'utf8', timeout: 8000, ...(viaShell ? { shell: true } : {}) })), 'loggedIn');
+      // A Windows npm install arrives as claude.cmd, which execFileSync cannot start without
+      // cmd.exe; winSpawnArgs quotes the command line without Node's deprecated `shell: true`.
+      const [cmd, cmdArgs, cmdOpts] = winSpawnArgs(this.bin, ['auth', 'status'], { encoding: 'utf8' as const, timeout: 8000 });
+      const loggedIn = !!get(parseJson(execFileSync(cmd, cmdArgs, cmdOpts)), 'loggedIn');
       this.auth = { at: Date.now(), loggedIn, error: loggedIn ? '' : loggedOut(this.bin) };
     } catch (err) { this.auth = { at: Date.now(), loggedIn: false, error: /not logged|login/i.test(String(errorField(err, 'stdout') || messageOf(err))) ? loggedOut(this.bin) : `无法确认 Claude Code 登录状态：${messageOf(err).split('\n')[0]}` }; }
     return this.auth;

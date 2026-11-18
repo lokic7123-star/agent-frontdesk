@@ -241,6 +241,11 @@ const REPORTS: Record<string, string> = {
   'ChatGPT 对话在回复时不能插话，消息已排队，等这条回复结束再发': "A ChatGPT conversation can't take a message while it's replying. Your message is queued for when the reply ends.",
   '缺少会话标题或消息': 'The chat title or the message is missing',
   '没能在 Codex 桌面版的侧栏里找到这个聊天': "Couldn't find this chat in Codex's desktop sidebar", '在 Codex 桌面版里选了不在项目里，但项目没有切换过去': "Picked no project in Codex's desktop app, but it didn't switch",
+  // Win32 UIA driver (src/server/native/win32/uia-driver/Program.cs)
+  '应用没有在运行': 'The app is not running',
+  '没有找到输入框（profile 的 composer）': 'Could not find the message box (composer in profile)',
+  '输入框填不进文字': 'Could not enter text into the message box',
+  '没有找到停止控件，也按不到 Esc': 'Could not find the stop button or press Esc',
 };
 const REPORT_PATTERNS: Array<[RegExp, (match: RegExpExecArray) => string]> = [
   // The sign-in command is the one that works on that machine (claude-bridge.ts, loginCommand).
@@ -339,6 +344,9 @@ const REPORT_PATTERNS: Array<[RegExp, (match: RegExpExecArray) => string]> = [
   [/^要换模型或推理强度得在 Codex 桌面版里换，但(.*)，没有发送$/, match => `The model or effort has to be changed in Codex's desktop app, but ${english(match[1])}. Nothing was sent.`],
   [/^没能让 Codex 桌面版停下（(.*)），请在桌面端停止$/, match => `Couldn't stop Codex's desktop app (${english(match[1])}). Stop it on desktop.`],
   [/^(.+)，没有发送$/, match => `${english(match[1])}. Nothing was sent.`],
+  [/^profile 里没有 (.+) 的认法$/, match => `No selector for ${match[1] ?? ''} in the profile`],
+  [/^这个动作（(.+)）的 Windows 支持还没写好$/, match => `Windows support for "${match[1] ?? ''}" is not implemented yet`],
+  [/^(.+?)没有在运行$/, match => { const app = match[1] ?? ''; return /\s*桌面版$/.test(app) ? `${owner(app)} desktop app isn't running` : `${app} is not running`; }],
 ];
 // A text from the server, in the interface language. Unknown texts are shown as they came.
 // "Claude 桌面版" → "Claude's"; the bare "桌面版" → "the desktop app's".

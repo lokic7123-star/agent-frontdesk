@@ -22,22 +22,29 @@
   turnOutcome 证据化（跳过 EPHEMERAL、completed 需 PLANNER/NOTIFY）、agentapi.bat
   shell、AGY_TRACE；会话列表/历史/模型/发送链路真机验证
 - `0f68b9e` Claude Windows 凭据（`~/.claude/.credentials.json`）读通道
-- `d36ea0b`+`0f93b2b` ZCode 模板（templates/，BRIDGE_ZCODE_PREVIEW=1 门控）+
-  docs/zcode-integration.md + docs/windows-deploy.md
-- `b0d2ddc` README/architecture 平台声明更新
-- 测试：147/147（基线 135/145，CRLF 修复 +10）；`npm run check` 全绿
+- `d36ea0b`+`0f93b2b` ZCode 模板（`src/server/templates/zcode.plugin.ts`，默认不被
+  `PluginHost` 加载，需复制到 `plugins/` 并设 `BRIDGE_ZCODE_PREVIEW=1`）+
+  `docs/zcode-integration.md` + `docs/windows-deploy.md`
+- `b0d2ddc`+`819419d` README/architecture 平台声明与审计文档修正
+- `2fee154`+`28a9ed7` `readAppIcon` PNG/asar 支持（Windows 指向 `resources\app.asar`）、
+  UIA `send` 标 `targeted:false`、MSIX `OpenAI.Codex` 别名解析、真实 Windows IPC 管道
+  `\\.\pipe\codex-ipc`（从 `app.asar` 核实）、`codex://threads/wake/` 及 ChatGPT 模式支持
+- 交叉审核修复批：
+  - **零 `DEP0190` 与 Windows 命令发现**：`config.ts` 新增 `winSpawnArgs()`（`cmd.exe /d /s /c` + `windowsVerbatimArguments: true`）并把 `.exe`/`.cmd`/`.bat` 候选排在无扩展名 npm POSIX shim 之前；`antigravity-bridge.ts`、`claude-bridge.ts`、`codex-bridge.ts` 全部移除 `shell: true`；`claude.plugin.ts` 传入 `bin: config.claudeBin` 并补全 `win32` `findClaudeBin()`。
+  - **Antigravity `lsEnv()` PID 防复用与路径归一化**：`lsEnv()` 校验合法正整数 PID、端口范围（`1..65535`）、2 秒 `lsCache` 与 30 秒 `pidCache`（Windows 下通过 `tasklist` 校验进程名匹配 `language_server|antigravity|codeium|node`）；`editedFile()` 改用 `/[\\/]\.system_generated[\\/]/` 匹配正反斜杠，`uploadOf()` 媒体匹配归一化 `file://` 与正反斜杠/盘符大小写；`codex-projects.ts` 与 `codex-bridge.ts` 同步归一化 Windows 盘符与分隔符。
+  - **UIA 驱动与构建加固（`Program.cs` 6 命令范围）**：`Program.cs` 设置 `UTF8Encoding(false)` 修复 CP936 乱码；明确仅支持 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`（携带 `--model`/`--effort`/`--mode`/`steer` 的 `send` 与其余动作返回 `unsupported`）；`FindByWay` 拒绝 macOS 专属定位键与空 `inside` 回退并支持 `class` 数组通配；`BorrowFocusAndPaste/Key` 与 `FindAppRoot` 修复焦点/剪贴板与进程句柄释放；`DesktopAutomation` 隔离并发 `dotnet publish` 的 `BaseIntermediateOutputPath` 并支持 `win-arm64` 与递归 `prune()`。
+  - **前端与 i18n**：`sidebar.ts` 导出 `repoKey` 统一 `\`→`/` 与 `c:/` 盘根；`renderers.ts` 的 `filePathOf` 先 `decodeSafe` 再剥离 `file://localhost/` 并支持含中文/空格盘符内联路径；`app.ts`/`kit.ts`/`new-options.ts`/`kit.css`/`style.css` 修复 basename、diff `cwd`、窄屏重叠与长路径溢出；`i18n.ts` 补齐 Win32 UIA 全部提示翻译。
+  - **测试与文档隐私收尾**：为 `test/{bridges,claude,file-preview,sidebar,spaces,lifecycle,core}.test.ts` 全部 `fs.mkdtempSync` 添加 `t.after(() => fs.rmSync(..., { recursive: true, force: true }))`；`file-preview.test.ts` 在 Windows `EPERM` 时使用目录 junction 验证越界拦截并补充 `filePathOf` 编码盘符与中文路径断言；`sidebar.test.ts` 扩展 i18n 源码扫描至 `.cs` 并验证 `repoKey`；脱敏 `test/bridges.test.ts` 与 `docs/zcode-integration.md` 中的本地用户名，同步更新文档诚实清单。
 
 ## ③ 验证方式
-`npm run check && npm test`（relay wrapup 门禁 exit 0）；真机验证记录在
-docs/windows-port-notes.md（hub 发现、LS RPC 200、发送到配额墙、回合证据链）。
+`npm run check && npm test`（交叉审核修复后全量通过：148/148 pass）与 `docs/windows-port-notes.md`
+中的真机实测记录（Antigravity LS RPC 200 / Codex MSIX `OpenAI.Codex` 读通道 / 图标与精灵图）。
 
 ## ④ 未决断点（按优先级）
-1. Antigravity 回复文本的网页回显：账号配额 429（约 2026-11-23 重置）后，重跑 closure 类探测脚本
-   （POST /api/sessions/antigravity 新建会话后轮询回合终态）补验「网页发消息→桌面回复→网页回显」全文闭环。
-2. Claude Desktop / Codex 桌面版未装机：UIA 发送与 IPC 通道代码就绪，装机后真机验证
-   （Codex IPC 的 Windows 管道名是占位，`CODEX_IPC_PATH` 可覆盖）。
-3. ZCode 二期接入：按 docs/zcode-integration.md 取证主会话落盘 → bridge → profiles。
-4. `process.kill(pid,0)` 的 pid 复用误判：改进为校验进程名或 TCP 探活。
+1. **真机交互发送闭环**：Antigravity 网页发消息全文回显（等待账号配额 429 重置后补验）及 Codex 桌面版交互窗口实测（MSIX `OpenAI.Codex`、`\\.\pipe\codex-ipc` 与 `codex://threads/wake/` 已核实接入，纯文本发送与 IPC 插话待交互窗口实测）。
+2. **Claude Desktop 装机实测**：本机未装 Claude Desktop，UIA 发送及 `CLAUDE_BIN` 实机验证待装机后进行。
+3. **Windows UIA 命令补齐**：`Program.cs` 当前仅实现 `check`、`warm`、`inspect`、`probe`、纯文本 `send`、`stop`（共 6 个命令）；`new`、模型/推理/权限/模式切换、`steer`、卡片、`open-file`、`show-session`、`chat-*` 返回 `unsupported`，以及 `send` 会话导航（`targeted:false`）与 `warm check` 漂移巡检待后续补齐。
+4. **ZCode 二期接入**：模板位于 `src/server/templates/zcode.plugin.ts`（默认不加载，需复制到 `src/server/plugins/`），按 `docs/zcode-integration.md` 取证主会话落盘 → bridge → profiles。
 
 ## ⑤ 环境 注意事项
 - 本仓库已设 `core.autocrlf=false`（源码测试按 LF 匹配，勿改回）。
@@ -45,15 +52,8 @@ docs/windows-port-notes.md（hub 发现、LS RPC 200、发送到配额墙、回�
   读 UTF-8）核验中文内容。
 - relay wrapup 在干净工作区会跳过台账写入；如需补台账，先落 HANDOFF.md 再收口。
 
-## ⑥ 交叉审计补遗（2026-11-18 第二轮，提交 819419d 之后）
-三个独立子代理交叉审核（提交完整性 / 门禁重跑 / 文档事实核查），全部通过，产出
-以下已修复项：
-- readAppIcon 支持 PNG 与 app.asar 内 /icon.png（Windows 图标原给 .exe 永远解析失败，
-  现指向 resources\app.asar，真机验证 48633B PNG 读出）
-- UIA send 结果带 targeted:false 并注明 title/localId 未导航的限制；粘贴超时不再误报
-  成功（BorrowFocusAndPaste 返回实绩）
-- contract.ts 过时注释、port-notes 补 warm-check/send 导航两条限制、README 徽章
-  URL、Roadmap 标注、HANDOFF 文件名指正
-- 隐私清理：Temp 下 npm test 遗留的 106 个 frontdesk-spaces-*（含桌面应用数据拷贝）
-  与本次会话全部探测脚本/dump 已删除；未发现任何敏感值入库
-审计确认：darwin 分支逐行等价、测试只加宽不削弱（含反例验证）、敏感信息零泄露。
+## ⑥ 交叉审计与清理说明（2026-11-18）
+- 已确认 `darwin` 分支保持等价，测试断言只补充不削弱；已清除仓库源码/文档中遗留的本机个人用户名路径，未发现凭据、邮箱或真实聊天截图入库。
+- 临时目录与探测脚本现状（如实记录）：
+  - 本批已通过 `t.after(..., { recursive: true, force: true })` 修复 `test/*.test.ts` 全部 `fs.mkdtempSync` 的泄漏，后续运行 `npm test` 不再新增遗留目录；
+  - `%TEMP%` 下仍留有本批修复之前历史测试产生的旧临时目录（当前环境钩子限制无法通过通用删除命令在 `%TEMP%` 批量清理），以及本仓库外部调度目录下的探测脚本/草稿（`C:\Users\<user>\.gemini\antigravity\brain\78742dd0-4cbd-4e8e-9908-08d389fa14e7\scratch\` 中的 `probe-backend.ts`、`agy-profile.json`、`zcode-profile.json`）。

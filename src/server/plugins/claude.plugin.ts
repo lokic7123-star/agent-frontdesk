@@ -87,7 +87,7 @@ export const wrapUpOf = (input: unknown): ToolSummary => ({ type: 'summary', sum
 export const previewOf = (input: unknown): ToolSummary => ({ type: 'preview', summary: `Started preview · ${text(get(input, 'name') || get(input, 'url') || 'preview')}`, detail: JSON.stringify(input, null, 2) });
 export const setup: PluginSetup = ({ config = {}, registerEngine, registerAsset }) => {
   APP_ASAR = config.claudeAppAsar || DEFAULT_ASAR;
-  const bridge = new ClaudeBridge({ claudeHome: config.claudeHome, desktopHome: config.claudeDesktopHome });
+  const bridge = new ClaudeBridge({ bin: config.claudeBin, claudeHome: config.claudeHome, desktopHome: config.claudeDesktopHome });
   // The desktop's "Claude" mode: its chats and pinned projects, from the app's own saved lists.
   const chats = new ClaudeChats({ desktopHome: bridge.appDir });
   const ELSEWHERE = 'Claude 模式聊天的正文不在本机，要从 Claude 桌面版的界面读';

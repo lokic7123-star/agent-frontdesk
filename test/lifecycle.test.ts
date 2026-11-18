@@ -21,8 +21,9 @@ test('unloaded interrupted/failed turns without completedAt never become termina
   for (const status of ['interrupted', 'failed', 'completed']) assert.equal(resolveCodexTurn({ status, completedAt: null }).status, 'unknown');
   assert.equal(resolveCodexTurn({ status: 'interrupted', completedAt: null }, fake<LifecycleTurn>({ status: 'running', statusEvidence: 'task_started' })).status, 'running');
 });
-test('lifecycle reader keeps a running turn through command failure, retry and final message until task_complete', async () => {
+test('lifecycle reader keeps a running turn through command failure, retry and final message until task_complete', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-life-')), file = path.join(dir, 'history.jsonl');
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const append = (payload: object) => fs.appendFileSync(file, JSON.stringify({ type: 'event_msg', timestamp: new Date().toISOString(), payload }) + '\n');
   append({ type: 'task_started', turn_id: 'turn' });
   append({ type: 'error', will_retry: true });
@@ -133,7 +134,7 @@ test('a console run that lost its turn is shown working only while the desktop r
   status = 'busy'; const fresh = new ActivityFeed(host, new EventHub(), noRuns()); await fresh.poll();
   assert.equal(at(fresh.snapshot().notices, 0).preview, 'First line of the turn'); feed.dispose(); fresh.dispose();
 });
-test('a console turn and the desktop record of it are one turn, attachments or a slow new chat or not', async () => {
+test('a console turn and the desktop record of it are one turn, attachments or a slow new chat or not', async t => {
   const { createStore } = await import('../src/client/js/store.js');
   const { sameTurn } = await import('../src/shared/turn-match.js');
   const { AttachmentStore, withAttachments } = await import('../src/server/core/attachments.js');
@@ -167,6 +168,7 @@ test('a console turn and the desktop record of it are one turn, attachments or a
   assert.deepEqual(store.turns.map(turn => [turn.id, turn.nativeTurnId, turn.userPrompt]), [['local', 'n', written]]);
   // What a message may name: only a file the store holds, typed by its stored name.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bridge-attachments-')), files = new AttachmentStore(dir);
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'abc.png'), 'png');
   assert.deepEqual(files.resolve([{ filename: 'abc.png', originalname: '截屏.png', mimetype: 'text/html', path: '/etc/passwd' }, { filename: 'abc.png' }]),
     [{ filename: 'abc.png', path: path.join(dir, 'abc.png'), originalname: '截屏.png', mimetype: 'image/png', url: '/uploads/abc.png' }]);

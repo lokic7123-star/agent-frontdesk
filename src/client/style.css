@@ -474,7 +474,7 @@ select {
 .new-options-aim { margin: 0 auto; width: fit-content; max-width: 100%; display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px 0 9px; border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 12.5px; }
 .new-options-aim span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .new-options-aim svg { width: 14px; height: 14px; flex: none; color: var(--engine-accent, var(--accent)); }
-.new-options-error { margin: 0; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--negative) 8%, transparent); color: var(--negative); font-size: 12.5px; line-height: 1.6; }
+.new-options-error { margin: 0; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--negative) 8%, transparent); color: var(--negative); font-size: 12.5px; line-height: 1.6; min-width: 0; overflow-wrap: anywhere; }
 .new-options-reload { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: var(--faint); cursor: pointer; transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease); }
 .new-options-reload:hover:not(:disabled) { background: var(--surface); color: var(--text); }
 .new-options-reload:disabled { opacity: .5; cursor: default; }
@@ -787,7 +787,9 @@ details[open]>summary .activity summary>.lucide:last-child {
   color:var(--muted);
   margin:8px 0 16px;
   font-size:13px;
-  white-space:pre-wrap
+  white-space:pre-wrap;
+  min-width:0;
+  overflow-wrap:anywhere
 }
 
 .approval-actions {
@@ -1444,7 +1446,7 @@ body.is-resizing { cursor: col-resize; user-select: none; }
 .side-dir .file-link:hover { background: var(--active); }
 .side-dir .file-link svg { width: 15px; height: 15px; flex: none; opacity: .7; }
 .side-dir .side-hint { padding: 4px 16px; }
-.side-code { margin: 0; padding: 10px 0 24px; font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.side-code { margin: 0; padding: 10px 0 24px; font: 12.5px/1.6 var(--mono); }
 .side-markdown { padding: 8px 20px 32px; font-size: 14px; line-height: 1.7; }
 .side-image { display: block; max-width: calc(100% - 32px); margin: 16px auto; border-radius: 8px; }
 .side-empty { height: 100%; min-height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; text-align: center; color: var(--muted); font-size: 14px; }
@@ -1920,10 +1922,12 @@ dialog::backdrop { background: rgb(0 0 0 / .42); }
 .notice > span { padding-top: 4px; overflow-wrap: anywhere; }
 .notice .icon-button { width: 28px; height: 28px; color: var(--muted); }
 /* Above the composer: what the console is doing with this chat, as a small tag… */
-.run-state:not(:empty) { width: fit-content; max-width: 100%; min-height: 0; height: 26px; margin: 0 0 8px 2px; padding: 0 12px 0 9px; border-radius: 13px; background: var(--surface); font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.run-state:not(:empty) { display: block; width: fit-content; max-width: 100%; min-height: 0; height: 26px; line-height: 26px; margin: 0 0 8px 2px; padding: 0 12px 0 9px; border-radius: 13px; background: var(--surface); font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-state .recording-dot, .run-state .activity-spinner { display: inline-block; vertical-align: middle; margin-right: 8px; }
 .run-state .activity-spinner { border-color: color-mix(in srgb, var(--engine-accent, var(--accent)) 24%, transparent); border-top-color: var(--engine-accent, var(--accent)); }
 /* …and why a message cannot go to the desktop right now. */
-.send-blocked { gap: 10px; margin: 0 0 8px; padding: 9px 14px 9px 12px; border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--warning) 7%, var(--ground)); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.send-blocked { min-width: 0; overflow-wrap: anywhere; gap: 10px; margin: 0 0 8px; padding: 9px 14px 9px 12px; border: 1px solid color-mix(in srgb, var(--warning) 30%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--warning) 7%, var(--ground)); color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+.send-blocked > span { min-width: 0; }
 .send-blocked .lucide { width: 15px; height: 15px; margin-top: 2px; color: var(--warning); }
 @media (max-width: 767px) { .notice { margin: 8px 8px 0; } }
 @media (prefers-reduced-motion: reduce) { .timeline > .quiet-state::before { animation: none; } }

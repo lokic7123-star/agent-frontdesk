@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 import { readValue } from '../src/server/services/chromium-idb.js';
 import { ClaudeChats } from '../src/server/services/claude-chats.js';
 import { CodexChatgpt } from '../src/server/services/codex-chatgpt.js';
@@ -27,7 +27,11 @@ function snappy(data: Buffer): Buffer {
 }
 // An IndexedDB blob as Chromium writes it: Blink header, 0x02 + snappy(Blink header + V8 value).
 const blob = (value: unknown) => Buffer.concat([Buffer.from([0xff, 0x11, 0x02]), snappy(Buffer.concat([Buffer.from([0xff, 0x15, 0xfe, 0x00]), v8.serialize(value)]))]);
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'frontdesk-spaces-'));
+const tmp = (t: TestContext) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'frontdesk-spaces-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  return dir;
+};
 
 test('IndexedDB values are read from the files alone: compressed or not, any string', () => {
   const value = { a: [1, -2, 3.5, true, null], name: '日语教学 Golden Gate', nested: { at: 'x' } };
@@ -36,8 +40,8 @@ test('IndexedDB values are read from the files alone: compressed or not, any str
   assert.equal(readValue(Buffer.from('not a value')), null);
 });
 
-test("Claude's Claude mode: its Recents and pinned projects from the desktop's saved lists, nothing else", () => {
-  const home = tmp(), dir = path.join(home, 'IndexedDB', 'https_claude.ai_0.indexeddb.blob', '1', '00');
+test("Claude's Claude mode: its Recents and pinned projects from the desktop's saved lists, nothing else", (t) => {
+  const home = tmp(t), dir = path.join(home, 'IndexedDB', 'https_claude.ai_0.indexeddb.blob', '1', '00');
   fs.mkdirSync(dir, { recursive: true });
   const chat = (uuid: string, name: string, updated: string, extra: object = {}) => ({ uuid, name, updated_at: updated, is_archived: false, is_temporary: false, project_uuid: null, ...extra });
   fs.writeFileSync(path.join(dir, '7'), blob({ clientState: { queries: [
@@ -52,11 +56,11 @@ test("Claude's Claude mode: its Recents and pinned projects from the desktop's s
   // Pinned projects, then a project a listed chat is in; an unpinned project with no listed chat is not shown.
   assert.deepEqual(projects.map(item => item.name), ['my-ai', 'Research']);
   assert.doesNotMatch(JSON.stringify({ chats, projects }), /example\.com/);
-  assert.deepEqual(new ClaudeChats({ desktopHome: tmp() }).read(), { chats: [], projects: [] });
+  assert.deepEqual(new ClaudeChats({ desktopHome: tmp(t) }).read(), { chats: [], projects: [] });
 });
 
-test("Codex's ChatGPT mode: Recents from the desktop's catalog, projects in its own order", () => {
-  const home = tmp();
+test("Codex's ChatGPT mode: Recents from the desktop's catalog, projects in its own order", (t) => {
+  const home = tmp(t);
   fs.mkdirSync(path.join(home, 'sqlite'));
   const db = new sqlite.DatabaseSync(path.join(home, 'sqlite', 'codex.db'));
   db.exec("CREATE TABLE local_thread_catalog (thread_id TEXT, display_title TEXT, host_id TEXT, source_recency_at REAL, source_updated_at REAL, missing_candidate INTEGER, thread_source TEXT)");
@@ -78,7 +82,7 @@ test("Codex's ChatGPT mode: Recents from the desktop's catalog, projects in its 
   assert.deepEqual(conversations.map(item => [item.id, item.local]), [['t-local', true], ['c-1', false]]);
   assert.equal(at(conversations, 1).updatedAt, new Date(200 * 1000).toISOString());
   assert.deepEqual(projects, [{ id: 'chatgpt:project:g-p-net', name: 'network', cwd: '' }, { id: 'codex:project:L1', name: 'coding', cwd: '/w/coding' }, { id: 'chatgpt:project:g-p-jp', name: '日语教学', cwd: '' }]);
-  assert.deepEqual(new CodexChatgpt({ codexHome: tmp() }).read(), { conversations: [], projects: [] });
+  assert.deepEqual(new CodexChatgpt({ codexHome: tmp(t) }).read(), { conversations: [], projects: [] });
 });
 
 test('a session can be in several modes, placed and ordered as each mode shows it', async () => {
