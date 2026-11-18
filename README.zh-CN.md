@@ -7,7 +7,7 @@
 **一个网页，用上你电脑里所有的桌面版 AI。**<br>
 想加新的 AI，把一段提示词发给它，它自己接进来。
 
-[![CI](https://github.com/lokic7123-star/agent-frontdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/lokic7123-star/agent-frontdesk/actions/workflows/ci.yml)
+[![CI](https://github.com/Phz-06/agent-frontdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/Phz-06/agent-frontdesk/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform: macOS · Windows 11](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Windows%2011-lightgrey.svg)
 ![Node 22.16+](https://img.shields.io/badge/node-%E2%89%A5%2022.16-brightgreen.svg)
@@ -59,10 +59,10 @@ Agent Frontdesk 把这些桌面应用放进同一个网页。干活的还是各�
 
 ## 快速开始
 
-需要 macOS 或 Windows 11 和 [Node.js](https://nodejs.org) 22.16 以上。本项目由 LoKi 独立维护，支持 macOS 与 Windows 11（静默发送引擎用 .NET 编译一个小驱动；各桌面应用在 Windows 上的现状与限制见 [docs/windows-deploy.md](docs/windows-deploy.md) 与 [docs/windows-port-notes.md](docs/windows-port-notes.md)）。
+需要 macOS 或 Windows 11 和 [Node.js](https://nodejs.org) 22.16 以上。本 fork 把项目移植到了 Windows 11（静默发送引擎用 .NET 编译一个小驱动；各桌面应用在 Windows 上的现状与限制见 [docs/windows-deploy.md](docs/windows-deploy.md) 与 [docs/windows-port-notes.md](docs/windows-port-notes.md)）。
 
 ```sh
-git clone https://github.com/lokic7123-star/agent-frontdesk.git
+git clone https://github.com/Phz-06/agent-frontdesk.git
 cd agent-frontdesk
 # Windows 克隆后先关闭 CRLF 自动转换，确保源码匹配测试按 LF 运行：
 git config core.autocrlf false
@@ -141,7 +141,7 @@ Frontdesk 是跑在你电脑上的一个小服务。它读各家桌面应用留�
 
 ## 未来计划
 
-- Windows 11 支持（持续完善中）
+- Windows 11 移植（本 fork；上游主线仍在计划中）
 - 接入更多桌面版 AI
 - 桌面应用用中文等其他界面语言时也能完整使用
 - 加上登录，在手机上远程查看和发消息
@@ -159,7 +159,3 @@ npm run check    # 类型检查加构建
 ## 许可
 
 [MIT](LICENSE)。Agent Frontdesk 是独立项目，与 OpenAI、Anthropic、Google 没有关联，各产品名称是其所有者的商标。
-
-## 致谢
-
-本项目由 LoKi 独立开发与维护。感谢 [Phz-06/agent-frontdesk](https://github.com/Phz-06/agent-frontdesk)（MIT）——本项目初期在架构与功能设计上参考了其开源项目思路，并按照 MIT 协议在 [LICENSE](LICENSE) 中完整保留原版权与许可声明。
