@@ -1,5 +1,7 @@
 # HANDOFF — agent-frontdesk Windows 11 移植
 
+> **2026-11-18 会话收口（只追加不覆盖）**：**revert(meta): 还原 Agent Frontdesk 原始上游署名与文档**——① **问题/目标**：还原此前本地误改的 Agent Frontdesk 署名与文档，保护上游 PR #1 原作者版权与目录结构；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：从备份还原 package.json、LICENSE、README.md 与 README.zh-CN.md（与 401575b 一致），并移除本地 origin 远端，仅保留 upstream；④ **结果**：提交 df8d04f 已入库；物理门禁 [npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
+
 > **2026-11-18 会话收口（只追加不覆盖）**：**docs(meta): 改为 LoKi 自研维护署名并补充 MIT 初期参考致谢**——① **问题/目标**：将 Agent Frontdesk 项目元数据与文档改为 LoKi 自研维护署名，保留 MIT 原始版权并致谢 Phz-06/agent-frontdesk；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 1f5a016（变更 LICENSE, README.md, README.zh-CN.md, package.json）；④ **结果**：提交 1f5a016 已入库；物理门禁 [npm test] PASS；工作区收敛干净；⑤ **未收/后续**：待将公开 Fork 仓库 lokic7123-star/agent-frontdesk 重建为私有仓库后再执行 git push origin windows-port。**Git：只追加，不 squash/rebase**。
 
 > **2026-11-18 会话收口（只追加不覆盖）**：**feat: 实现并更新 windows-deploy.md, windows-port-notes.md, zcode-integration.md 等 9 个文件**——① **问题/目标**：完成 feat: 实现并更新 windows-deploy.md, windows-port-notes.md, zcode-integration.md 等 9 个文件；② **踩坑/要点**：平稳收口，前置验证门禁通过；③ **方案**：提交 b0b8430（变更 windows-deploy.md, windows-port-notes.md, zcode-integration.md, sidebar.ts 等 9 个文件）；④ **结果**：提交 b0b8430 已入库；物理门禁 [npm run check && npm test] PASS；工作区收敛干净；⑤ **未收/后续**：无遗留，任务闭环。**Git：只追加，不 squash/rebase**。
