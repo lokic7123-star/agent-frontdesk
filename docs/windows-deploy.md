@@ -32,8 +32,13 @@ npm run build:exe
 产出项目根目录的 `Agent Frontdesk.exe`（Node SEA：服务端与 npm 依赖经 esbuild 打进
 一个 CJS bundle 后注入 node.exe 副本，双击即可启动，无需 node_modules）。exe 仍从
 磁盘读取 `dist/public` 与 `src/server/native`，因此须保留在项目根目录。
-仓库根的 `start-frontdesk.cmd`（或其桌面快捷方式）优先启动 exe，未打包时回落到
-`node dist/server/server.js`；代码更新后需重跑 `npm run build:exe` 才会进入 exe。
+
+日常启动不用命令行：仓库根的 `start-frontdesk.vbs` 在后台静默启动 exe
+（无任何窗口；未打包时回落到 `node dist/server/server.js`，同样隐藏），
+服务就绪后自动打开浏览器页面；已在运行时只开页面。`stop-frontdesk.vbs`
+结束后台服务（taskkill 按 exe 名精确匹配）。桌面快捷方式各自指向这两个
+脚本，图标用 `src/client/public/assets/logo/logo.ico`。
+代码更新后需重跑 `npm run build:exe` 才会进入 exe。
 
 ## 环境变量（全部可选）
 
